@@ -1,0 +1,15 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+jobs.db*
+neon.db
+videos/
+refactor-svg.js
+test.cjs
+metadata.json
+.antigravity/
