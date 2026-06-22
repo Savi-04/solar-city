@@ -129,7 +129,7 @@ async function startServer() {
           { type: "image", data: base64Image, mime_type: mimeType as any },
           {
             type: "text",
-            text: `Transform this photo into a bold graphic-novel / screenprint style portrait for an official ID card. NOT photorealistic. NOT anime. Aim for high-end editorial illustration — clean, confident, deliberate. Smooth tonal shading with 4-5 distinct tonal bands (posterized/screenprint feel). Primary key light from below-left: warm amber/golden light catching the chin, cheekbones, and nose. Secondary fill light from upper-right: cold chrome/teal rim light on the opposite side. Deep confident shadows. The eyes must be sharp, fully detailed, and direct. Preserve the subject's exact facial features, bone structure, skin tone, hairstyle. The portrait must be recognizable as the same person — do NOT alter race, gender, or age. Head and shoulders only, centered, portrait crop. Dark teal/near-black background. No text, no logos, no watermarks.`,
+            text: `Retain the original facial features, expression, and structure of the subject, but upgrade the lighting and textures to match a high-end AAA video game cinematic. Apply an Unreal Engine 5 rendering style with incredibly detailed 3D textures, subsurface scattering, and cinematic volumetric lighting. Illuminate the subject with dramatic dual rim lighting—neon magenta on one side, electric cyan on the other. The background should be a dark, moody atmospheric sci-fi void. The final result must look like premium video game promotional art while remaining completely recognizable as the original subject. 8k resolution, masterpiece quality.`,
           },
         ],
       });
@@ -435,7 +435,7 @@ async function startServer() {
       const buffer = Buffer.from(job[`${layer}_layer_b64`], "base64");
       res.setHeader("Content-Type", "image/png");
       // Demo card should never be cached — it regenerates on server restart
-      const isDemoCard = req.params.id === "demo-card-v3";
+      const isDemoCard = req.params.id === "demo-card-v4";
       res.setHeader("Cache-Control", isDemoCard ? "no-cache, no-store" : "public, max-age=31536000");
       res.end(buffer);
     });
@@ -495,7 +495,7 @@ async function startServer() {
 
 // ─── Demo card ───────────────────────────────────────────────────────────────
 // Generated once on startup using a hardcoded SVG portrait — no AI call needed.
-const DEMO_JOB_ID = "demo-card-v3";
+const DEMO_JOB_ID = "demo-card-v4";
 
 async function generateDemoCard() {
   const existing = getJob(DEMO_JOB_ID);
@@ -516,20 +516,20 @@ async function generateDemoCard() {
           <stop offset="100%" stop-color="#070d14"/>
         </linearGradient>
         <radialGradient id="amber-key" cx="25%" cy="88%" r="65%">
-          <stop offset="0%" stop-color="#ff6b1a" stop-opacity="0.5"/>
+          <stop offset="0%" stop-color="#ff6b1a" stop-opacity="0.75"/>
           <stop offset="100%" stop-color="#ff6b1a" stop-opacity="0"/>
         </radialGradient>
         <radialGradient id="chrome-rim" cx="82%" cy="15%" r="55%">
-          <stop offset="0%" stop-color="#a0dde8" stop-opacity="0.4"/>
+          <stop offset="0%" stop-color="#a0dde8" stop-opacity="0.6"/>
           <stop offset="100%" stop-color="#a0dde8" stop-opacity="0"/>
         </radialGradient>
         <linearGradient id="face-shade" x1="30%" y1="95%" x2="70%" y2="5%">
-          <stop offset="0%" stop-color="#3d1a0a"/>
-          <stop offset="40%" stop-color="#1e0f08"/>
-          <stop offset="100%" stop-color="#0c1a1e"/>
+          <stop offset="0%" stop-color="#7a3820"/>
+          <stop offset="40%" stop-color="#3c1c10"/>
+          <stop offset="100%" stop-color="#1e3040"/>
         </linearGradient>
         <radialGradient id="face-hi" cx="30%" cy="75%" r="40%">
-          <stop offset="0%" stop-color="#ffc94a" stop-opacity="0.22"/>
+          <stop offset="0%" stop-color="#ffc94a" stop-opacity="0.65"/>
           <stop offset="100%" stop-color="transparent" stop-opacity="0"/>
         </radialGradient>
         <filter id="sf"><feGaussianBlur stdDeviation="2"/></filter>
@@ -542,27 +542,27 @@ async function generateDemoCard() {
       <rect width="260" height="300" fill="url(#amber-key)"/>
       <rect width="260" height="300" fill="url(#chrome-rim)"/>
       <!-- Shoulders -->
-      <path d="M -10 300 Q 28 256 76 238 Q 104 228 130 226 Q 156 228 184 238 Q 232 256 270 300 Z" fill="#0a1a1e"/>
-      <path d="M 18 300 Q 52 260 96 245 Q 115 239 130 237 Q 145 239 164 245 Q 208 260 242 300 Z" fill="#0e2028"/>
-      <path d="M 76 238 Q 104 228 130 226" fill="none" stroke="#ff6b1a" stroke-width="1.2" stroke-opacity="0.4"/>
+      <path d="M -10 300 Q 28 256 76 238 Q 104 228 130 226 Q 156 228 184 238 Q 232 256 270 300 Z" fill="#1a2e38"/>
+      <path d="M 18 300 Q 52 260 96 245 Q 115 239 130 237 Q 145 239 164 245 Q 208 260 242 300 Z" fill="#243a48"/>
+      <path d="M 76 238 Q 104 228 130 226" fill="none" stroke="#ff6b1a" stroke-width="1.2" stroke-opacity="0.6"/>
       <!-- Neck -->
-      <path d="M 115 224 Q 113 231 130 236 Q 147 231 145 224 L 142 205 Q 140 199 130 198 Q 120 199 118 205 Z" fill="#0d1e24"/>
-      <path d="M 115 224 Q 113 231 130 236" fill="none" stroke="#ff6b1a" stroke-width="1" stroke-opacity="0.35" filter="url(#sf)"/>
+      <path d="M 115 224 Q 113 231 130 236 Q 147 231 145 224 L 142 205 Q 140 199 130 198 Q 120 199 118 205 Z" fill="#2a3e50"/>
+      <path d="M 115 224 Q 113 231 130 236" fill="none" stroke="#ff6b1a" stroke-width="1" stroke-opacity="0.55" filter="url(#sf)"/>
       <!-- Head -->
-      <ellipse cx="130" cy="136" rx="78" ry="92" fill="#08141a"/>
+      <ellipse cx="130" cy="136" rx="78" ry="92" fill="#1e3040"/>
       <!-- Hair -->
-      <path d="M 52 136 Q 54 52 130 44 Q 206 52 208 136 L 202 108 Q 196 56 160 46 Q 146 42 130 42 Q 114 42 100 46 Q 64 56 58 108 Z" fill="#061018"/>
+      <path d="M 52 136 Q 54 52 130 44 Q 206 52 208 136 L 202 108 Q 196 56 160 46 Q 146 42 130 42 Q 114 42 100 46 Q 64 56 58 108 Z" fill="#0e2030"/>
       <path d="M 60 100 Q 72 66 102 52" fill="none" stroke="#a0dde8" stroke-width="1.8" stroke-opacity="0.28"/>
       <path d="M 158 52 Q 188 66 200 100" fill="none" stroke="#a0dde8" stroke-width="1.8" stroke-opacity="0.2"/>
       <!-- Face -->
       <ellipse cx="130" cy="148" rx="66" ry="76" fill="url(#face-shade)"/>
       <ellipse cx="130" cy="148" rx="66" ry="76" fill="url(#face-hi)"/>
       <!-- Amber rim left (key) -->
-      <path d="M 64 106 Q 54 146 64 194" fill="none" stroke="#ff6b1a" stroke-width="3.5" stroke-opacity="0.55" filter="url(#sf)"/>
-      <path d="M 69 110 Q 60 148 69 190" fill="none" stroke="#ffc94a" stroke-width="1.8" stroke-opacity="0.4"/>
+      <path d="M 64 106 Q 54 146 64 194" fill="none" stroke="#ff6b1a" stroke-width="3.5" stroke-opacity="0.85" filter="url(#sf)"/>
+      <path d="M 69 110 Q 60 148 69 190" fill="none" stroke="#ffc94a" stroke-width="1.8" stroke-opacity="0.7"/>
       <!-- Chrome rim right -->
-      <path d="M 196 106 Q 206 146 196 194" fill="none" stroke="#e8f4f8" stroke-width="3" stroke-opacity="0.38" filter="url(#sf)"/>
-      <path d="M 191 109 Q 200 146 191 191" fill="none" stroke="#a0dde8" stroke-width="1.5" stroke-opacity="0.32"/>
+      <path d="M 196 106 Q 206 146 196 194" fill="none" stroke="#e8f4f8" stroke-width="3" stroke-opacity="0.65" filter="url(#sf)"/>
+      <path d="M 191 109 Q 200 146 191 191" fill="none" stroke="#a0dde8" stroke-width="1.5" stroke-opacity="0.55"/>
       <!-- Eyebrows -->
       <path d="M 93 120 Q 108 113 123 115" fill="none" stroke="rgba(200,180,140,0.55)" stroke-width="2.2" stroke-linecap="round"/>
       <path d="M 137 115 Q 152 113 167 120" fill="none" stroke="rgba(200,180,140,0.55)" stroke-width="2.2" stroke-linecap="round"/>

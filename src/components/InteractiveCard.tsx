@@ -61,6 +61,23 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     return () => cancelAnimationFrame(animId);
   }, [autoAnimate, mouseX, mouseY]);
 
+  // Prevent page scroll while dragging the card on mobile (passive: false required)
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = (touch.clientX - rect.left) / rect.width;
+      const y = (touch.clientY - rect.top) / rect.height;
+      mouseX.set(Math.max(0, Math.min(1, x)));
+      mouseY.set(Math.max(0, Math.min(1, y)));
+    };
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    return () => el.removeEventListener('touchmove', handleTouchMove);
+  }, [mouseX, mouseY]);
+
   useEffect(() => {
     if (!activeId) return;
 
@@ -72,7 +89,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       })
       .then(data => setLayers(data))
       .catch(err => setError(err.message));
-      
+
     // Handle device orientation for mobile touch-tilt
     const handleOrientation = (e: DeviceOrientationEvent) => {
       // beta is front-to-back tilt in degrees, where front is positive
@@ -170,18 +187,9 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       <div
         ref={cardRef}
         className={`relative z-10 perspective-[1200px] ${standalone ? "" : "w-full h-full"}`}
-        style={standalone ? { width: "min(400px, 90vw)", height: "calc(min(400px, 90vw) * 1.3325)" } : undefined}
+        style={standalone ? { width: "min(400px, 90vw)", height: "calc(min(400px, 90vw) * 1.3325)", touchAction: "none" } : { touchAction: "none" }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        onTouchMove={(e) => {
-          if (!cardRef.current) return;
-          const rect = cardRef.current.getBoundingClientRect();
-          const touch = e.touches[0];
-          const x = (touch.clientX - rect.left) / rect.width;
-          const y = (touch.clientY - rect.top) / rect.height;
-          mouseX.set(x);
-          mouseY.set(y);
-        }}
         onTouchEnd={handleMouseLeave}
       >
         <motion.div

@@ -129,7 +129,7 @@ export default function LandingPage() {
     let tries = 0;
     const check = async () => {
       try {
-        const res = await fetch("/api/jobs/demo-card-v3/layers");
+        const res = await fetch("/api/jobs/demo-card-v4/layers");
         if (res.ok) { setDemoReady(true); return; }
       } catch { /* */ }
       if (++tries < 10) setTimeout(check, 1500);
@@ -264,7 +264,7 @@ export default function LandingPage() {
               }}
             >
               {demoReady ? (
-                <InteractiveCard jobId="demo-card-v3" standalone={false} autoAnimate={true} />
+                <InteractiveCard jobId="demo-card-v4" standalone={false} autoAnimate={true} />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center space-y-3" style={{ background: "#08050f" }}>
                   <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(255,32,96,0.5)", borderTopColor: "transparent" }} />

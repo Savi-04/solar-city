@@ -91,14 +91,15 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
       img.onload = () => {
         const canvas = document.createElement("canvas");
         let { width, height } = img;
-        const MAX = 800;
+        // Smaller max size = faster upload + faster Gemini call, especially on mobile
+        const MAX = 512;
         if (width > height) { if (width > MAX) { height = Math.round(height * MAX / width); width = MAX; } }
         else { if (height > MAX) { width = Math.round(width * MAX / height); height = MAX; } }
         canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (!ctx) return resolve(f);
         ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => resolve(blob ?? f), "image/jpeg", 0.7);
+        canvas.toBlob((blob) => resolve(blob ?? f), "image/jpeg", 0.6);
       };
       img.onerror = () => resolve(f);
       img.src = URL.createObjectURL(f);
