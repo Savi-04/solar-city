@@ -35,7 +35,7 @@ function formatPlayerNumber(n: number): string {
   return n.toString().padStart(4, '0');
 }
 
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || "3000");
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "dummy" });
 
 const upload = multer({
