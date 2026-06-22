@@ -61,22 +61,25 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     return () => cancelAnimationFrame(animId);
   }, [autoAnimate, mouseX, mouseY]);
 
-  // Prevent page scroll while dragging the card on mobile (passive: false required)
+  // Touch tilt + scroll prevention — must re-run after layers load (cardRef is null during loading spinner)
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
-    const handleTouchMove = (e: TouchEvent) => {
+    const updateFromTouch = (e: TouchEvent) => {
       e.preventDefault();
       const rect = el.getBoundingClientRect();
       const touch = e.touches[0];
-      const x = (touch.clientX - rect.left) / rect.width;
-      const y = (touch.clientY - rect.top) / rect.height;
-      mouseX.set(Math.max(0, Math.min(1, x)));
-      mouseY.set(Math.max(0, Math.min(1, y)));
+      if (!touch) return;
+      mouseX.set(Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width)));
+      mouseY.set(Math.max(0, Math.min(1, (touch.clientY - rect.top) / rect.height)));
     };
-    el.addEventListener('touchmove', handleTouchMove, { passive: false });
-    return () => el.removeEventListener('touchmove', handleTouchMove);
-  }, [mouseX, mouseY]);
+    el.addEventListener('touchstart', updateFromTouch, { passive: false });
+    el.addEventListener('touchmove', updateFromTouch, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', updateFromTouch);
+      el.removeEventListener('touchmove', updateFromTouch);
+    };
+  }, [mouseX, mouseY, layers]);
 
   useEffect(() => {
     if (!activeId) return;
