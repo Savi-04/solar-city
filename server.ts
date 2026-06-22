@@ -442,7 +442,7 @@ async function startServer() {
       const buffer = Buffer.from(job[`${layer}_layer_b64`], "base64");
       res.setHeader("Content-Type", "image/png");
       // Demo card should never be cached — it regenerates on server restart
-      const isDemoCard = req.params.id === "demo-card-v5";
+      const isDemoCard = req.params.id === "demo-card-v6";
       res.setHeader("Cache-Control", isDemoCard ? "no-cache, no-store" : "public, max-age=31536000");
       res.end(buffer);
     });
@@ -502,7 +502,7 @@ async function startServer() {
 
 // ─── Demo card ───────────────────────────────────────────────────────────────
 // Generated once on startup using a hardcoded SVG portrait — no AI call needed.
-const DEMO_JOB_ID = "demo-card-v5";
+const DEMO_JOB_ID = "demo-card-v6";
 
 async function generateDemoCard() {
   const existing = getJob(DEMO_JOB_ID);
@@ -514,90 +514,181 @@ async function generateDemoCard() {
     VALUES (?, 'CREATED', 'ALEX NOVA', 'SOLARA CITY', 'NEON QUARTER', 0)
   `).run(DEMO_JOB_ID);
 
-  // Demo portrait: graphic-novel silhouette with amber key light + chrome/teal rim light
+  // Demo portrait: gamified character with teal hair, dual-color glowing eyes, cyberpunk jacket
   const demoPortraitSvg = `
     <svg width="260" height="300" viewBox="0 0 260 300" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="bg-demo" x1="20%" y1="0%" x2="80%" y2="100%">
-          <stop offset="0%" stop-color="#003d4f"/>
-          <stop offset="100%" stop-color="#070d14"/>
+          <stop offset="0%" stop-color="#002830"/>
+          <stop offset="100%" stop-color="#050a10"/>
         </linearGradient>
-        <radialGradient id="amber-key" cx="25%" cy="88%" r="65%">
-          <stop offset="0%" stop-color="#ff6b1a" stop-opacity="0.75"/>
+        <linearGradient id="skin-g" x1="30%" y1="100%" x2="70%" y2="0%">
+          <stop offset="0%" stop-color="#c47a3a"/>
+          <stop offset="55%" stop-color="#d4894a"/>
+          <stop offset="100%" stop-color="#8a4a22"/>
+        </linearGradient>
+        <linearGradient id="hair-g" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#006878"/>
+          <stop offset="50%" stop-color="#003d4f"/>
+          <stop offset="100%" stop-color="#002030"/>
+        </linearGradient>
+        <radialGradient id="amber-key" cx="20%" cy="92%" r="70%">
+          <stop offset="0%" stop-color="#ff6b1a" stop-opacity="0.72"/>
           <stop offset="100%" stop-color="#ff6b1a" stop-opacity="0"/>
         </radialGradient>
-        <radialGradient id="chrome-rim" cx="82%" cy="15%" r="55%">
-          <stop offset="0%" stop-color="#a0dde8" stop-opacity="0.6"/>
-          <stop offset="100%" stop-color="#a0dde8" stop-opacity="0"/>
+        <radialGradient id="cyan-rim" cx="88%" cy="8%" r="62%">
+          <stop offset="0%" stop-color="#00e8ff" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#00e8ff" stop-opacity="0"/>
         </radialGradient>
-        <linearGradient id="face-shade" x1="30%" y1="95%" x2="70%" y2="5%">
-          <stop offset="0%" stop-color="#7a3820"/>
-          <stop offset="40%" stop-color="#3c1c10"/>
-          <stop offset="100%" stop-color="#1e3040"/>
-        </linearGradient>
-        <radialGradient id="face-hi" cx="30%" cy="75%" r="40%">
-          <stop offset="0%" stop-color="#ffc94a" stop-opacity="0.65"/>
-          <stop offset="100%" stop-color="transparent" stop-opacity="0"/>
+        <radialGradient id="lime-top" cx="50%" cy="0%" r="45%">
+          <stop offset="0%" stop-color="#b8ff3c" stop-opacity="0.12"/>
+          <stop offset="100%" stop-color="#b8ff3c" stop-opacity="0"/>
         </radialGradient>
         <filter id="sf"><feGaussianBlur stdDeviation="2"/></filter>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="2.8" result="b"/>
+        <filter id="sf3"><feGaussianBlur stdDeviation="3.5"/></filter>
+        <filter id="glow-a">
+          <feGaussianBlur stdDeviation="2.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-c">
+          <feGaussianBlur stdDeviation="2.5" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
+
+      <!-- Background -->
       <rect width="260" height="300" fill="url(#bg-demo)"/>
       <rect width="260" height="300" fill="url(#amber-key)"/>
-      <rect width="260" height="300" fill="url(#chrome-rim)"/>
-      <!-- Shoulders -->
-      <path d="M -10 300 Q 28 256 76 238 Q 104 228 130 226 Q 156 228 184 238 Q 232 256 270 300 Z" fill="#1a2e38"/>
-      <path d="M 18 300 Q 52 260 96 245 Q 115 239 130 237 Q 145 239 164 245 Q 208 260 242 300 Z" fill="#243a48"/>
-      <path d="M 76 238 Q 104 228 130 226" fill="none" stroke="#ff6b1a" stroke-width="1.2" stroke-opacity="0.6"/>
-      <!-- Neck -->
-      <path d="M 115 224 Q 113 231 130 236 Q 147 231 145 224 L 142 205 Q 140 199 130 198 Q 120 199 118 205 Z" fill="#2a3e50"/>
-      <path d="M 115 224 Q 113 231 130 236" fill="none" stroke="#ff6b1a" stroke-width="1" stroke-opacity="0.55" filter="url(#sf)"/>
-      <!-- Head -->
-      <ellipse cx="130" cy="136" rx="78" ry="92" fill="#1e3040"/>
-      <!-- Hair -->
-      <path d="M 52 136 Q 54 52 130 44 Q 206 52 208 136 L 202 108 Q 196 56 160 46 Q 146 42 130 42 Q 114 42 100 46 Q 64 56 58 108 Z" fill="#0e2030"/>
-      <path d="M 60 100 Q 72 66 102 52" fill="none" stroke="#a0dde8" stroke-width="1.8" stroke-opacity="0.28"/>
-      <path d="M 158 52 Q 188 66 200 100" fill="none" stroke="#a0dde8" stroke-width="1.8" stroke-opacity="0.2"/>
-      <!-- Face -->
-      <ellipse cx="130" cy="148" rx="66" ry="76" fill="url(#face-shade)"/>
-      <ellipse cx="130" cy="148" rx="66" ry="76" fill="url(#face-hi)"/>
-      <!-- Amber rim left (key) -->
-      <path d="M 64 106 Q 54 146 64 194" fill="none" stroke="#ff6b1a" stroke-width="3.5" stroke-opacity="0.85" filter="url(#sf)"/>
-      <path d="M 69 110 Q 60 148 69 190" fill="none" stroke="#ffc94a" stroke-width="1.8" stroke-opacity="0.7"/>
-      <!-- Chrome rim right -->
-      <path d="M 196 106 Q 206 146 196 194" fill="none" stroke="#e8f4f8" stroke-width="3" stroke-opacity="0.65" filter="url(#sf)"/>
-      <path d="M 191 109 Q 200 146 191 191" fill="none" stroke="#a0dde8" stroke-width="1.5" stroke-opacity="0.55"/>
-      <!-- Eyebrows -->
-      <path d="M 93 120 Q 108 113 123 115" fill="none" stroke="rgba(200,180,140,0.55)" stroke-width="2.2" stroke-linecap="round"/>
-      <path d="M 137 115 Q 152 113 167 120" fill="none" stroke="rgba(200,180,140,0.55)" stroke-width="2.2" stroke-linecap="round"/>
-      <!-- Eyes amber/gold iris -->
-      <g filter="url(#glow)">
-        <ellipse cx="110" cy="137" rx="15" ry="8.5" fill="#0c1c20"/>
-        <ellipse cx="110" cy="137" rx="12" ry="5.8" fill="#8b5e1a" opacity="0.9"/>
-        <ellipse cx="110" cy="137" rx="12" ry="5.8" fill="#ffc94a" opacity="0.52"/>
-        <ellipse cx="150" cy="137" rx="15" ry="8.5" fill="#0c1c20"/>
-        <ellipse cx="150" cy="137" rx="12" ry="5.8" fill="#8b5e1a" opacity="0.9"/>
-        <ellipse cx="150" cy="137" rx="12" ry="5.8" fill="#ffc94a" opacity="0.52"/>
+      <rect width="260" height="300" fill="url(#cyan-rim)"/>
+      <rect width="260" height="300" fill="url(#lime-top)"/>
+
+      <!-- Subtle bg circuit lines -->
+      <g opacity="0.07" stroke="#00e8ff" stroke-width="0.5" fill="none">
+        <path d="M 18 210 L 18 228 L 36 228 L 36 240"/>
+        <path d="M 242 190 L 242 208 L 224 208 L 224 220"/>
+        <circle cx="36" cy="240" r="2" fill="#00e8ff" stroke="none"/>
+        <circle cx="224" cy="220" r="2" fill="#00e8ff" stroke="none"/>
+        <path d="M 8 260 L 30 260 L 30 270 L 50 270"/>
+        <path d="M 252 270 L 230 270 L 230 258 L 210 258"/>
       </g>
-      <ellipse cx="110" cy="137" rx="4.5" ry="4.5" fill="#060e10" opacity="0.82"/>
-      <ellipse cx="150" cy="137" rx="4.5" ry="4.5" fill="#060e10" opacity="0.82"/>
-      <ellipse cx="106" cy="134" rx="3.2" ry="2.2" fill="white" opacity="0.72"/>
-      <ellipse cx="146" cy="134" rx="3.2" ry="2.2" fill="white" opacity="0.72"/>
-      <path d="M 98 142 Q 110 147 122 142" fill="none" stroke="#ff6b1a" stroke-width="0.8" stroke-opacity="0.5"/>
-      <path d="M 138 142 Q 150 147 162 142" fill="none" stroke="#ff6b1a" stroke-width="0.8" stroke-opacity="0.5"/>
-      <!-- Nose -->
-      <path d="M 123 150 L 118 168 Q 126 172 130 172 Q 134 172 142 168 L 137 150" fill="none" stroke="rgba(255,180,80,0.1)" stroke-width="1.2" stroke-linecap="round"/>
-      <ellipse cx="120" cy="169" rx="3.2" ry="2.6" fill="rgba(80,50,20,0.5)"/>
-      <ellipse cx="140" cy="169" rx="3.2" ry="2.6" fill="rgba(80,50,20,0.5)"/>
-      <!-- Lips -->
-      <path d="M 106 190 Q 118 184 130 185 Q 142 184 154 190 Q 142 202 130 204 Q 118 202 106 190 Z" fill="#3d1a08" opacity="0.95"/>
-      <path d="M 106 190 Q 118 183 130 184 Q 142 183 154 190" fill="none" stroke="#ff6b1a" stroke-width="1.4" stroke-opacity="0.6"/>
-      <!-- Jaw amber catch-light -->
-      <path d="M 76 200 Q 102 220 130 224 Q 158 220 184 200" fill="none" stroke="#ff6b1a" stroke-width="1.8" stroke-opacity="0.26" filter="url(#sf)"/>
-      <ellipse cx="130" cy="214" rx="26" ry="7" fill="#ff6b1a" opacity="0.1" filter="url(#sf)"/>
+
+      <!-- Jacket / shoulders -->
+      <path d="M -15 300 Q 30 252 78 232 Q 106 220 130 218 Q 154 220 182 232 Q 230 252 275 300 Z" fill="#0a1820"/>
+      <!-- Jacket inner panels -->
+      <path d="M 78 232 Q 100 222 114 232 L 110 268 Q 104 278 94 275 Z" fill="#0d2230"/>
+      <path d="M 182 232 Q 160 222 146 232 L 150 268 Q 156 278 166 275 Z" fill="#0d2230"/>
+      <!-- Jacket tech panel lines -->
+      <path d="M 28 290 Q 54 258 78 238" stroke="#00c6d4" stroke-width="1.2" fill="none" opacity="0.55"/>
+      <path d="M 232 290 Q 206 258 182 238" stroke="#00c6d4" stroke-width="1.2" fill="none" opacity="0.55"/>
+      <path d="M 40 300 Q 68 268 96 248" stroke="#ff6b1a" stroke-width="0.7" fill="none" opacity="0.38"/>
+      <path d="M 220 300 Q 192 268 164 248" stroke="#ff6b1a" stroke-width="0.7" fill="none" opacity="0.38"/>
+      <!-- Collar amber trim -->
+      <path d="M 78 232 Q 106 221 130 219 Q 154 221 182 232" stroke="#ff6b1a" stroke-width="1.5" fill="none" opacity="0.75"/>
+      <!-- Jacket shoulder amber glow -->
+      <path d="M 50 280 Q 70 256 90 240" stroke="#ff6b1a" stroke-width="3" fill="none" opacity="0.18" filter="url(#sf)"/>
+      <path d="M 210 280 Q 190 256 170 240" stroke="#ff6b1a" stroke-width="3" fill="none" opacity="0.18" filter="url(#sf)"/>
+      <!-- Small tech badge left shoulder -->
+      <rect x="52" y="260" width="18" height="10" rx="2" fill="#003d4f" stroke="#00c6d4" stroke-width="0.6" opacity="0.7"/>
+      <rect x="55" y="263" width="6" height="1.5" rx="0.5" fill="#00e8ff" opacity="0.9"/>
+      <rect x="55" y="266" width="10" height="1.5" rx="0.5" fill="#00e8ff" opacity="0.6"/>
+
+      <!-- Neck -->
+      <path d="M 113 217 Q 111 226 130 232 Q 149 226 147 217 L 144 200 Q 141 193 130 192 Q 119 193 116 200 Z" fill="#b87840"/>
+      <path d="M 113 217 Q 111 226 130 232" stroke="#ff6b1a" stroke-width="1.2" fill="none" opacity="0.65"/>
+      <!-- Cyan neck shadow right -->
+      <path d="M 147 217 Q 149 226 130 232" stroke="#00c6d4" stroke-width="0.8" fill="none" opacity="0.4"/>
+
+      <!-- Head base — warm skin -->
+      <ellipse cx="130" cy="132" rx="76" ry="88" fill="url(#skin-g)"/>
+
+      <!-- Cyan rim light on face right -->
+      <path d="M 196 88 Q 212 132 196 178" stroke="#00e8ff" stroke-width="9" fill="none" opacity="0.28" filter="url(#sf)"/>
+      <path d="M 191 92 Q 205 132 191 174" stroke="#a0eeff" stroke-width="2.5" fill="none" opacity="0.55"/>
+
+      <!-- Amber key light on face left -->
+      <path d="M 64 88 Q 48 132 64 178" stroke="#ff6b1a" stroke-width="9" fill="none" opacity="0.45" filter="url(#sf)"/>
+      <path d="M 69 92 Q 55 132 69 174" stroke="#ffa040" stroke-width="2.5" fill="none" opacity="0.65"/>
+
+      <!-- TEAL/CYAN HAIR — bold, stylized -->
+      <!-- Hair mass -->
+      <path d="M 54 132 Q 56 44 130 36 Q 204 44 206 132 L 200 100 Q 192 46 158 38 Q 144 34 130 34 Q 116 34 102 38 Q 68 46 60 100 Z" fill="url(#hair-g)"/>
+      <!-- Hair volume depth -->
+      <path d="M 60 100 Q 56 66 82 48 Q 107 33 130 32 Q 153 33 178 48 Q 204 66 200 100" fill="#002838" opacity="0.75"/>
+      <!-- Hair top highlight (cyan) -->
+      <path d="M 98 38 Q 130 26 162 38" stroke="#00c6d4" stroke-width="3.5" fill="none" opacity="0.8" stroke-linecap="round"/>
+      <path d="M 108 34 Q 130 28 152 34" stroke="#00e8ff" stroke-width="1.5" fill="none" opacity="0.6"/>
+      <!-- Hair side sheen -->
+      <path d="M 56 80 Q 68 52 104 42" stroke="#00c6d4" stroke-width="2.5" fill="none" opacity="0.65" stroke-linecap="round"/>
+      <path d="M 204 80 Q 192 52 156 42" stroke="#00c6d4" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="round"/>
+      <!-- Lime hair crown accent -->
+      <path d="M 112 36 Q 130 28 148 36" stroke="#b8ff3c" stroke-width="1.5" fill="none" opacity="0.55"/>
+      <circle cx="130" cy="27" r="2" fill="#b8ff3c" opacity="0.6"/>
+      <!-- Hair strands loose -->
+      <path d="M 54 130 Q 50 158 53 190" stroke="#006878" stroke-width="2.5" fill="none" opacity="0.5"/>
+      <path d="M 206 130 Q 210 158 207 190" stroke="#006878" stroke-width="2.5" fill="none" opacity="0.4"/>
+
+      <!-- Eyebrows — bold dark arches -->
+      <path d="M 88 110 Q 106 101 124 104" stroke="#1a1008" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.85"/>
+      <path d="M 136 104 Q 154 101 172 110" stroke="#1a1008" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.85"/>
+      <!-- Brow highlight -->
+      <path d="M 90 109 Q 107 102 123 105" stroke="#c47a3a" stroke-width="1" fill="none" opacity="0.35"/>
+
+      <!-- LEFT EYE — amber/gold glowing -->
+      <ellipse cx="107" cy="128" rx="18" ry="11" fill="#1a0800"/>
+      <ellipse cx="107" cy="128" rx="14" ry="7.5" fill="#8b3c00"/>
+      <ellipse cx="107" cy="128" rx="14" ry="7.5" fill="#ff8020" opacity="0.65"/>
+      <ellipse cx="107" cy="128" rx="9" ry="5" fill="#ffb840" opacity="0.75"/>
+      <ellipse cx="107" cy="128" rx="5" ry="5" fill="#0a0502"/>
+      <ellipse cx="107" cy="128" rx="15" ry="8" fill="none" stroke="#ff6b1a" stroke-width="1" opacity="0.9" filter="url(#glow-a)"/>
+      <!-- Amber eye glow bloom -->
+      <ellipse cx="107" cy="128" rx="18" ry="11" fill="#ff6b1a" opacity="0.08" filter="url(#sf3)"/>
+      <!-- Left eye specular -->
+      <ellipse cx="102" cy="124" rx="3.5" ry="2.5" fill="white" opacity="0.9"/>
+      <ellipse cx="113" cy="131" rx="1.5" ry="1" fill="white" opacity="0.5"/>
+
+      <!-- RIGHT EYE — cyan glowing -->
+      <ellipse cx="153" cy="128" rx="18" ry="11" fill="#000a10"/>
+      <ellipse cx="153" cy="128" rx="14" ry="7.5" fill="#006070"/>
+      <ellipse cx="153" cy="128" rx="14" ry="7.5" fill="#00d4e8" opacity="0.6"/>
+      <ellipse cx="153" cy="128" rx="9" ry="5" fill="#60f0ff" opacity="0.7"/>
+      <ellipse cx="153" cy="128" rx="5" ry="5" fill="#020a0c"/>
+      <ellipse cx="153" cy="128" rx="15" ry="8" fill="none" stroke="#00e8ff" stroke-width="1" opacity="0.9" filter="url(#glow-c)"/>
+      <!-- Cyan eye glow bloom -->
+      <ellipse cx="153" cy="128" rx="18" ry="11" fill="#00e8ff" opacity="0.07" filter="url(#sf3)"/>
+      <!-- Right eye specular -->
+      <ellipse cx="148" cy="124" rx="3.5" ry="2.5" fill="white" opacity="0.9"/>
+      <ellipse cx="159" cy="131" rx="1.5" ry="1" fill="white" opacity="0.5"/>
+
+      <!-- Under-eye eyelashes suggestion -->
+      <path d="M 93 135 Q 107 140 121 135" fill="none" stroke="#ff6b1a" stroke-width="0.7" opacity="0.4"/>
+      <path d="M 139 135 Q 153 140 167 135" fill="none" stroke="#00e8ff" stroke-width="0.7" opacity="0.4"/>
+
+      <!-- Nose — minimal, warm -->
+      <path d="M 122 145 L 118 162 Q 126 167 130 167 Q 134 167 142 162 L 138 145" fill="none" stroke="#8a4010" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>
+      <ellipse cx="120" cy="163" rx="3" ry="2.4" fill="#7a3808" opacity="0.55"/>
+      <ellipse cx="140" cy="163" rx="3" ry="2.4" fill="#7a3808" opacity="0.55"/>
+
+      <!-- Lips — warm, defined -->
+      <path d="M 108 184 Q 119 177 130 178 Q 141 177 152 184 Q 141 197 130 199 Q 119 197 108 184 Z" fill="#9a3818" opacity="0.95"/>
+      <path d="M 108 184 Q 119 176 130 177 Q 141 176 152 184" stroke="#ff6b1a" stroke-width="1.6" fill="none" opacity="0.72"/>
+      <path d="M 117 180 Q 130 176 143 180" stroke="rgba(255,160,80,0.4)" stroke-width="1.5" fill="none"/>
+
+      <!-- Cheek blush — amber -->
+      <ellipse cx="88" cy="150" rx="20" ry="11" fill="#ff6b1a" opacity="0.1" filter="url(#sf)"/>
+      <!-- Cheek blush — cyan right -->
+      <ellipse cx="172" cy="150" rx="20" ry="11" fill="#00c6d4" opacity="0.08" filter="url(#sf)"/>
+
+      <!-- Jaw amber glow -->
+      <path d="M 74 196 Q 102 216 130 220 Q 158 216 186 196" fill="none" stroke="#ff6b1a" stroke-width="2" opacity="0.28" filter="url(#sf)"/>
+
+      <!-- Cyberpunk facial mark — small teal triangles under right eye -->
+      <polygon points="168,142 174,138 174,146" fill="#00e8ff" opacity="0.65"/>
+      <polygon points="176,144 180,141 180,147" fill="#00e8ff" opacity="0.4"/>
+
+      <!-- Forehead circuit accent (lime) -->
+      <path d="M 116 72 L 130 66 L 144 72" stroke="#b8ff3c" stroke-width="0.8" fill="none" opacity="0.5"/>
+      <circle cx="130" cy="65" r="2" fill="#b8ff3c" opacity="0.6"/>
+      <path d="M 123 69 L 137 69" stroke="#b8ff3c" stroke-width="0.5" fill="none" opacity="0.3"/>
     </svg>
   `;
 
