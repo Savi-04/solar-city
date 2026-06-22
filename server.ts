@@ -403,7 +403,14 @@ async function startServer() {
         .jpeg({ quality: 85 })
         .toBuffer();
 
-      saveJobLayers(jobId, bgBuffer.toString("base64"), frameBuffer.toString("base64"), portraitBuffer.toString("base64"), textBuffer.toString("base64"));
+      const portraitLayerBuffer = await sharp({
+        create: { width: 800, height: 1066, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+      })
+      .composite([{ input: portraitBuffer, top: 100, left: 140 }])
+      .png()
+      .toBuffer();
+
+      saveJobLayers(jobId, bgBuffer.toString("base64"), frameBuffer.toString("base64"), portraitLayerBuffer.toString("base64"), textBuffer.toString("base64"));
       
       const unwBase64 = unwatermarkedBuffer.toString("base64");
       const prevBase64 = previewBuffer.toString("base64");
@@ -435,7 +442,7 @@ async function startServer() {
       const buffer = Buffer.from(job[`${layer}_layer_b64`], "base64");
       res.setHeader("Content-Type", "image/png");
       // Demo card should never be cached — it regenerates on server restart
-      const isDemoCard = req.params.id === "demo-card-v4";
+      const isDemoCard = req.params.id === "demo-card-v5";
       res.setHeader("Cache-Control", isDemoCard ? "no-cache, no-store" : "public, max-age=31536000");
       res.end(buffer);
     });
@@ -495,7 +502,7 @@ async function startServer() {
 
 // ─── Demo card ───────────────────────────────────────────────────────────────
 // Generated once on startup using a hardcoded SVG portrait — no AI call needed.
-const DEMO_JOB_ID = "demo-card-v4";
+const DEMO_JOB_ID = "demo-card-v5";
 
 async function generateDemoCard() {
   const existing = getJob(DEMO_JOB_ID);
@@ -777,11 +784,18 @@ async function generateDemoCard() {
   const frameBuffer = await sharp(Buffer.from(frameSvg)).png().toBuffer();
   const textBuffer  = await sharp(Buffer.from(textSvg)).png().toBuffer();
 
+  const portraitLayerBuffer = await sharp({
+    create: { width: 800, height: 1066, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+  })
+  .composite([{ input: portraitBuffer, top: 100, left: 140 }])
+  .png()
+  .toBuffer();
+
   saveJobLayers(
     DEMO_JOB_ID,
     bgBuffer.toString("base64"),
     frameBuffer.toString("base64"),
-    portraitBuffer.toString("base64"),
+    portraitLayerBuffer.toString("base64"),
     textBuffer.toString("base64"),
   );
 
