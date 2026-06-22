@@ -1,7 +1,9 @@
 // Database schema and setup for local MVP
 import Database from 'better-sqlite3';
+import { mkdirSync } from 'fs';
 
 const DB_PATH = process.env.DATA_DIR ? `${process.env.DATA_DIR}/jobs.db` : 'jobs.db';
+if (process.env.DATA_DIR) mkdirSync(process.env.DATA_DIR, { recursive: true });
 export const db = new Database(DB_PATH);
 
 db.pragma('journal_mode = WAL');
