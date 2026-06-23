@@ -4,10 +4,13 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import multer from "multer";
 import { GoogleGenAI, GenerateVideosOperation } from "@google/genai";
+import { fal } from "@fal-ai/client";
 import sharp from "sharp";
 import crypto from "crypto";
 import { Readable } from "stream";
 import { readFileSync } from "fs";
+
+fal.config({ credentials: process.env.FAL_KEY });
 import {
   db,
   createJob,
@@ -124,24 +127,24 @@ async function startServer() {
     let stylizedBase64 = base64Image;
 
     try {
-      const styleInteraction = await ai.interactions.create({
-        model: "gemini-2.5-flash-image",
-        input: [
-          { type: "image", data: base64Image, mime_type: mimeType as any },
-          {
-            type: "text",
-            text: `Retain the original facial features, expression, and structure of the subject, but upgrade the lighting and textures to match a high-end AAA video game cinematic. Apply an Unreal Engine 5 rendering style with incredibly detailed 3D textures, subsurface scattering, and cinematic volumetric lighting. Illuminate the subject with dramatic dual rim lighting—neon magenta on one side, electric cyan on the other. The background should be a dark, moody atmospheric sci-fi void. The final result must look like premium video game promotional art while remaining completely recognizable as the original subject. 8k resolution, masterpiece quality.`,
-          },
-        ],
-      });
+      const imageBlob = new Blob([Buffer.from(base64Image, "base64")], { type: mimeType });
+      const imageUrl = await fal.storage.upload(imageBlob);
 
-      const imageOutput = styleInteraction.steps
-        .slice().reverse()
-        .find((s) => s.type === "model_output")
-        ?.content?.find((c) => c.type === "image");
+      const result = await fal.subscribe("fal-ai/nano-banana-2/edit", {
+        input: {
+          prompt: `Apply a high-end AAA video game lighting and texture pass directly over the original photo. Crucially, the underlying facial geometry, bone structure, features, and identity of the subject must remain completely unaltered from the input image. Do not redraw the face; only upgrade the surface rendering quality. Apply an Unreal Engine 5 rendering style, highly detailed subsurface scattering, and cinematic volumetric lighting. Illuminate the subject with dramatic dual rim lighting—neon magenta on one side, electric cyan on the other. Dark atmospheric sci-fi background. The final result must look exactly like the original person standing inside a premium 3D video game cinematic.`,
+          image_urls: [imageUrl],
+        },
+        logs: true,
+      }) as any;
 
-      if (imageOutput?.data) {
-        stylizedBase64 = imageOutput.data;
+      const outputUrl: string | undefined =
+        result?.data?.images?.[0]?.url ?? result?.data?.image?.url;
+
+      if (outputUrl) {
+        const imgRes = await fetch(outputUrl);
+        const arrayBuf = await imgRes.arrayBuffer();
+        stylizedBase64 = Buffer.from(arrayBuf).toString("base64");
       }
     } catch (err) {
       console.error("Image stylization failed, falling back to original", err);
