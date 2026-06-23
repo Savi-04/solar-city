@@ -50,6 +50,24 @@ const upload = multer({
 async function startServer() {
   const app = express();
 
+  // fal.ai proxy — must be before express.json() so raw body is not pre-consumed
+  app.use("/api/fal/proxy", express.raw({ type: "*/*", limit: "50mb" }), async (req: any, res: any) => {
+    const targetUrl = req.headers["x-fal-target-url"] as string;
+    if (!targetUrl) { res.status(400).json({ error: "Missing x-fal-target-url" }); return; }
+    const headers: Record<string, string> = { "Authorization": `Key ${process.env.FAL_KEY}` };
+    if (req.headers["content-type"]) headers["content-type"] = req.headers["content-type"] as string;
+    const response = await fetch(targetUrl, {
+      method: req.method,
+      headers,
+      body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
+    });
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.status(response.status);
+    const ct = response.headers.get("content-type");
+    if (ct) res.setHeader("content-type", ct);
+    res.send(buffer);
+  });
+
   app.use(express.json({ limit: "50mb" }));
 
   // API Routes
@@ -58,13 +76,10 @@ async function startServer() {
   });
 
   // Step A: Upload & Validate
-  app.post("/api/upload", upload.single("selfie"), async (req, res) => {
+  app.post("/api/upload", async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No image provided" });
-      }
-
-      let { name, city, age_confirmed, ownership_confirmed, privacy_accepted } = req.body;
+      let { selfie_url, name, city, age_confirmed, ownership_confirmed, privacy_accepted } = req.body;
+      if (!selfie_url) return res.status(400).json({ error: "No image provided" });
       name = name || "UNKNOWN";
       city = city || "UNKNOWN";
 
@@ -76,14 +91,13 @@ async function startServer() {
       const playerNumber = createJob(jobId, name, city);
       logConsent(jobId, age_confirmed === "true", ownership_confirmed === "true", privacy_accepted === "true");
 
-      const base64Image = req.file.buffer.toString("base64");
-      const mimeType = req.file.mimetype;
-
-      // ─── Run moderation fast, in parallel with stylization start ───
-      // We return the jobId to the client immediately after moderation passes.
-      // Stylization + card building continue in the background; client polls for preview_url.
+      // Fetch image from fal CDN for moderation (server-to-server, fast)
       let modResult = "ACCEPT";
       try {
+        const imgRes = await fetch(selfie_url);
+        const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+        const base64Image = imgBuffer.toString("base64");
+        const mimeType = imgRes.headers.get("content-type") || "image/jpeg";
         const modInteraction = await ai.interactions.create({
           model: "gemini-2.5-flash",
           input: [
@@ -100,14 +114,11 @@ async function startServer() {
         return res.status(400).json({ error: "Image failed safety check or isn't a clear adult human face" });
       }
 
-      // ✅ Respond immediately after moderation — client gets jobId right away (~3-5s)
       res.json({ jobId, playerNumber });
 
-      // ─── Background: stylize + build card + store preview ───
-      // This runs after the HTTP response is already sent
       const job = getJob(jobId);
       const district = job?.district || 'SUNRISE COAST';
-      buildCardInBackground(jobId, name, city, district, playerNumber, base64Image, mimeType).catch((err) => {
+      buildCardInBackground(jobId, name, city, district, playerNumber, selfie_url).catch((err) => {
         console.error("Background card build failed", err);
         updateJobStatus(jobId, "FAILED");
       });
@@ -118,18 +129,18 @@ async function startServer() {
     }
   });
 
+  let lastFalDebug: any = null;
+  app.get("/api/debug/fal", (_req, res) => res.json(lastFalDebug ?? { status: "no run yet" }));
+
   // Runs fully in background after upload responds
   async function buildCardInBackground(
     jobId: string, name: string, city: string,
     district: string, playerNumber: number,
-    base64Image: string, mimeType: string
+    imageUrl: string
   ) {
-    let stylizedBase64 = base64Image;
+    let stylizedBase64: string | null = null;
 
     try {
-      const imageBlob = new Blob([Buffer.from(base64Image, "base64")], { type: mimeType });
-      const imageUrl = await fal.storage.upload(imageBlob);
-
       const result = await fal.subscribe("fal-ai/nano-banana-2/edit", {
         input: {
           prompt: `Apply a high-end AAA video game lighting and texture pass directly over the original photo. Crucially, the underlying facial geometry, bone structure, features, and identity of the subject must remain completely unaltered from the input image. Do not redraw the face; only upgrade the surface rendering quality. Apply an Unreal Engine 5 rendering style, highly detailed subsurface scattering, and cinematic volumetric lighting. Illuminate the subject with dramatic dual rim lighting—neon magenta on one side, electric cyan on the other. Dark atmospheric sci-fi background. The final result must look exactly like the original person standing inside a premium 3D video game cinematic.`,
@@ -141,13 +152,29 @@ async function startServer() {
       const outputUrl: string | undefined =
         result?.data?.images?.[0]?.url ?? result?.data?.image?.url;
 
+      lastFalDebug = {
+        requestId: result?.requestId,
+        outputUrl,
+        dataKeys: Object.keys(result?.data ?? {}),
+        images: result?.data?.images,
+        raw: JSON.stringify(result).slice(0, 2000),
+      };
+
       if (outputUrl) {
         const imgRes = await fetch(outputUrl);
         const arrayBuf = await imgRes.arrayBuffer();
         stylizedBase64 = Buffer.from(arrayBuf).toString("base64");
       }
-    } catch (err) {
+    } catch (err: any) {
+      lastFalDebug = { error: err?.message, stack: err?.stack?.slice(0, 500) };
       console.error("Image stylization failed, falling back to original", err);
+    }
+
+    // Fall back to original if stylization failed
+    if (!stylizedBase64) {
+      const imgRes = await fetch(imageUrl);
+      const arrayBuf = await imgRes.arrayBuffer();
+      stylizedBase64 = Buffer.from(arrayBuf).toString("base64");
     }
 
     // Portrait window: 260×300px at x=70, y=50 in SVG coords.

@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Upload, Camera, AlertTriangle, Zap, Cpu } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { fal } from "@fal-ai/client";
+
+fal.config({ proxyUrl: "/api/fal/proxy" });
 
 interface UploadStepProps {
   onUpload: (data: FormData) => void;
@@ -44,6 +47,8 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
   const [ownershipConfirmed, setOwnershipConfirmed] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [counter, setCounter] = useState<{ issued: number; remaining: number } | null>(null);
+  const [falUploading, setFalUploading] = useState(false);
+  const [falError, setFalError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -74,15 +79,23 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
     e.preventDefault();
     if (!file || !name || !city || !ageConfirmed || !ownershipConfirmed || !privacyAccepted) return;
 
-    const compressedFile = await compressImage(file);
-    const fd = new FormData();
-    fd.append("selfie", compressedFile);
-    fd.append("name", name);
-    fd.append("city", city);
-    fd.append("age_confirmed", ageConfirmed.toString());
-    fd.append("ownership_confirmed", ownershipConfirmed.toString());
-    fd.append("privacy_accepted", privacyAccepted.toString());
-    onUpload(fd);
+    setFalError(null);
+    setFalUploading(true);
+    try {
+      const selfie_url = await fal.storage.upload(file);
+      const fd = new FormData();
+      fd.append("selfie_url", selfie_url);
+      fd.append("name", name);
+      fd.append("city", city);
+      fd.append("age_confirmed", ageConfirmed.toString());
+      fd.append("ownership_confirmed", ownershipConfirmed.toString());
+      fd.append("privacy_accepted", privacyAccepted.toString());
+      onUpload(fd);
+    } catch (err: any) {
+      setFalError(err?.message || "Upload failed, please try again");
+    } finally {
+      setFalUploading(false);
+    }
   };
 
   const compressImage = (f: File): Promise<Blob> =>
@@ -91,21 +104,21 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
       img.onload = () => {
         const canvas = document.createElement("canvas");
         let { width, height } = img;
-        // Smaller max size = faster upload + faster Gemini call, especially on mobile
-        const MAX = 512;
+        const MAX = 1024;
         if (width > height) { if (width > MAX) { height = Math.round(height * MAX / width); width = MAX; } }
         else { if (height > MAX) { width = Math.round(width * MAX / height); height = MAX; } }
         canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (!ctx) return resolve(f);
         ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => resolve(blob ?? f), "image/jpeg", 0.6);
+        canvas.toBlob((blob) => resolve(blob ?? f), "image/jpeg", 0.92);
       };
       img.onerror = () => resolve(f);
       img.src = URL.createObjectURL(f);
     });
 
-  const canSubmit = file && name && city && ageConfirmed && ownershipConfirmed && privacyAccepted && !isUploading;
+  const busy = isUploading || falUploading;
+  const canSubmit = file && name && city && ageConfirmed && ownershipConfirmed && privacyAccepted && !busy;
 
   return (
     <motion.div
@@ -274,10 +287,10 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
 
             {/* Error */}
             <AnimatePresence>
-              {uploadError && (
+              {(uploadError || falError) && (
                 <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} className="flex items-start space-x-2.5 rounded-xl p-3" style={{ background: "rgba(255,0,0,0.05)", border: "1px solid rgba(255,0,0,0.18)" }}>
                   <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-xs font-mono text-red-300/80">{uploadError}</p>
+                  <p className="text-xs font-mono text-red-300/80">{falError || uploadError}</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -292,7 +305,12 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-200 pointer-events-none" style={{ background: "linear-gradient(135deg, rgba(255,32,96,0.08) 0%, rgba(0,232,255,0.06) 100%)" }} />
               <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%)", animation: canSubmit ? "shimmer-sweep 3s ease-in-out infinite" : "none" }} />
               <span className="relative z-10 text-white/85 flex items-center justify-center space-x-2.5">
-                {isUploading ? (
+                {falUploading ? (
+                  <>
+                    <Cpu className="w-4 h-4 text-[#00e8ff]" style={{ animation: "spin-slow 2s linear infinite" }} />
+                    <span>UPLOADING…</span>
+                  </>
+                ) : isUploading ? (
                   <>
                     <Cpu className="w-4 h-4 text-[#ff6b1a]" style={{ animation: "spin-slow 2s linear infinite" }} />
                     <span>ISSUING RESIDENT ID…</span>

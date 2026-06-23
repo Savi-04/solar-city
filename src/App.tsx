@@ -93,7 +93,12 @@ function MainFlow() {
     setIsUploading(true);
     setError(null);
     try {
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const body = Object.fromEntries(formData.entries());
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
 
