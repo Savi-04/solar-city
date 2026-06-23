@@ -479,6 +479,33 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // OG image — flat composite of the demo card for social link previews
+  app.get("/api/og-image", async (req, res) => {
+    try {
+      const demo = getJob("demo-card-v7");
+      if (demo?.bg_layer_b64 && demo?.portrait_layer_b64 && demo?.frame_layer_b64 && demo?.text_layer_b64) {
+        const composite = await sharp(Buffer.from(demo.bg_layer_b64, "base64"))
+          .composite([
+            { input: Buffer.from(demo.portrait_layer_b64, "base64"), top: 0, left: 0 },
+            { input: Buffer.from(demo.frame_layer_b64, "base64"), top: 0, left: 0 },
+            { input: Buffer.from(demo.text_layer_b64, "base64"), top: 0, left: 0 },
+          ])
+          .jpeg({ quality: 88 })
+          .toBuffer();
+        res.setHeader("Content-Type", "image/jpeg");
+        res.setHeader("Cache-Control", "public, max-age=3600");
+        return res.end(composite);
+      }
+    } catch (err) {
+      console.error("OG image composite failed", err);
+    }
+    // Fallback: raw demo portrait while demo card is still generating
+    const fallback = path.join(process.cwd(), "assets", "demo-portrait.png");
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "public, max-age=60");
+    res.end(readFileSync(fallback));
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -488,9 +515,27 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
+    const indexHtml = readFileSync(path.join(distPath, "index.html"), "utf8");
     app.use(express.static(distPath));
     app.get("*all", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      const base = `${req.protocol}://${req.get("host")}`;
+      const html = indexHtml.replace(
+        "</head>",
+        `  <meta property="og:title" content="Solar City Card" />
+  <meta property="og:description" content="Turn your selfie into a holographic game-art ID card" />
+  <meta property="og:image" content="${base}/api/og-image" />
+  <meta property="og:image:width" content="800" />
+  <meta property="og:image:height" content="1066" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${base}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Solar City Card" />
+  <meta name="twitter:description" content="Turn your selfie into a holographic game-art ID card" />
+  <meta name="twitter:image" content="${base}/api/og-image" />
+</head>`
+      );
+      res.setHeader("Content-Type", "text/html");
+      res.send(html);
     });
   }
 
