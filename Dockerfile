@@ -13,6 +13,11 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Declare build-time args so Railway passes VITE_* vars during docker build
+ARG VITE_GUMROAD_PRODUCT_URL
+ENV VITE_GUMROAD_PRODUCT_URL=$VITE_GUMROAD_PRODUCT_URL
+
 RUN npm run build
 
 ENV NODE_ENV=production
