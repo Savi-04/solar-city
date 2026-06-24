@@ -31,7 +31,7 @@ const FEATURES = [
   { icon: <LinkIcon className="w-3 h-3" />, label: "Shareable link + download for IG / X / TikTok", color: "#b8ff3c" },
 ];
 
-export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay: _onPay, isProcessingPayment, playerNumber }: PreviewStepProps) {
+export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isProcessingPayment, playerNumber }: PreviewStepProps) {
   const [district, setDistrict] = useState<string | null>(null);
   const localPrice = useCurrencyPrice();
 
@@ -148,7 +148,10 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay: _on
           {/* Pay button */}
           <motion.button
             onClick={() => {
-              if (gumroadHref) window.location.href = gumroadHref;
+              if (gumroadHref) {
+                onPay();
+                window.location.href = gumroadHref;
+              }
             }}
             disabled={isProcessingPayment}
             whileHover={{ scale: isProcessingPayment ? 1 : 1.01 }}
