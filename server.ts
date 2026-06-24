@@ -511,7 +511,7 @@ async function startServer() {
     }
   }
 
-  // ─── Video generation (fal.ai Seedance) ─────────────────────────────────────
+  // ─── Video generation (fal.ai Kling O3 — VIDEO 3.0 Omni) ───────────────────
   async function generateCardVideo(jobId: string): Promise<void> {
     const job = getJob(jobId);
     if (!job?.bg_layer_b64 || !job?.portrait_layer_b64 || !job?.frame_layer_b64 || !job?.text_layer_b64 || !job.public_id) return;
@@ -525,9 +525,9 @@ async function startServer() {
     // Already generated — don't re-charge
     try { await fsPromises.access(videoPath); return; } catch {}
 
-    console.log(`[video] Starting Seedance generation for ${jobId}`);
+    console.log(`[video] Starting Kling O3 generation for ${jobId}`);
 
-    // ── @Image1: portrait face (face region extracted from stylized portrait layer) ──
+    // ── @Element1: portrait face (frontal image for Kling character identity lock) ──
     const portraitLayerBuf = Buffer.from(job.portrait_layer_b64, "base64");
     const { width: pW = 800, height: pH = 1066 } = await sharp(portraitLayerBuf).metadata();
     const canExtract = pW >= 660 && pH >= 700;
@@ -542,7 +542,7 @@ async function startServer() {
           .jpeg({ quality: 95 })
           .toBuffer();
 
-    // ── @Image2: full card composite (800×1066, same as og-card) ──────────────
+    // ── @Image1: full card composite (800×1066, same as og-card) ─────────────
     const fullCardBuf = await sharp(Buffer.from(job.bg_layer_b64, "base64"))
       .composite([
         { input: Buffer.from(job.portrait_layer_b64, "base64") },
@@ -561,47 +561,48 @@ async function startServer() {
     console.log(`[video] portrait → ${portraitUrl}`);
     console.log(`[video] card → ${cardUrl}`);
 
-    // ── Call fal.ai Seedance 2.0 fast reference-to-video ─────────────────────
-    const PROMPT = `@Image1 is motionless, eyes closed, in total darkness.
+    // ── Call fal.ai Kling O3 Standard reference-to-video ────────────────────
+    const PROMPT = `Medium close-up shot, cinematic 2.39:1 aspect ratio. @Element1 stands still facing the camera in a dimly lit environment, holding @Image1 at chest height with both hands, tilted slightly toward camera.
 
-A thin neon scan line traces across the character's face from left to right. \
-Their eyes open — looking directly into the camera. One frame of subtle RGB \
-split on the iris as they come online.
+The subject's face, bone structure, skin texture, hair, and all physical features must remain pixel-identical to the reference — no redrawing, no beautification, no morphing. Only the lighting environment changes around them.
 
-Cut immediately to @Image2 floating in the center of frame, rotating slowly \
-in a void, casting pink and teal light onto the surrounding dark. Each stat \
-line on the card blinks in from the left, one by one, green text, sharp edges.
+Lighting: Warm amber key light from upper left casting soft shadows across the face. Cool steel-blue fill light from lower right. A single thin volumetric light shaft cuts diagonally through the background haze behind the subject's shoulder.
 
-Final shot: both @Image1 and @Image2 visible — character slightly behind and \
-over the card's shoulder, both facing camera. Rain begins to fall through \
-the frame from above, drops catching the card's glow.
+Background: A rain-soaked rooftop at golden hour dusk. Blurred city skyline with warm tungsten building lights in deep bokeh. Subtle heat haze rising from wet concrete. No neon signs. No holographic elements. No cyberpunk aesthetics. The mood is grounded, cinematic, and premium — like a Villeneuve or Fincher film.
 
-Camera: tight head shot on the eye-open, rack focus to the card on the cut, \
-wide enough to hold both on the final frame. Grade: cold blue base, neon \
-accent colours, high contrast.`;
+Environmental motion only: Wisps of warm steam drift slowly left to right behind the subject. Micro rain droplets catch the backlight and fall in ultra slow motion. The subject's hair and clothing react with barely perceptible wind physics. The card in their hands catches light and produces a subtle prismatic refraction flare as the camera drifts.
 
-    const result = await fal.subscribe("bytedance/seedance-2.0/fast/reference-to-video", {
+Camera: Extremely slow push-in dolly, moving no more than 5% closer over the full duration. Subtle vertical handheld drift to simulate anamorphic lens breathing. Cinematic depth of field with f/1.4 bokeh separation between subject and background.
+
+The subject does not speak, does not gesture, does not move their body. Eyes look directly into lens. Expression is calm, confident, neutral. Zero limb movement. Zero hand repositioning. The only motion in the entire frame comes from the environment, the light, and the camera.
+
+Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grain overlay, subtle teal-and-orange color grade. Masterpiece cinematography.`;
+
+    const NEGATIVE_PROMPT = `morphing, warping, extra limbs, extra fingers, face distortion, face change, beautification, cartoonish, anime, neon signs, cyberpunk neon, holographic overlays, rapid movement, flickering, stuttering, body movement, talking, gesturing`;
+
+    const result = await fal.subscribe("fal-ai/kling-video/o3/standard/reference-to-video", {
       input: {
         prompt: PROMPT,
-        image_urls: [portraitUrl, cardUrl],
-        resolution: "720p",
-        duration: "8",
+        negative_prompt: NEGATIVE_PROMPT,
+        elements: [{ frontal_image_url: portraitUrl }],
+        image_urls: [cardUrl],
+        duration: "10",
         aspect_ratio: "9:16",
         generate_audio: false,
-        bitrate_mode: "high",
+        cfg_scale: 0.4,
       },
       logs: true,
       onQueueUpdate: (update: any) => {
-        console.log(`[video] Seedance status: ${update.status} for ${jobId}`);
+        console.log(`[video] Kling O3 status: ${update.status} for ${jobId}`);
       },
     }) as any;
 
     const videoUrl: string | undefined = result?.data?.video?.url;
 
     if (!videoUrl) {
-      console.error("[video] Full Seedance response:", JSON.stringify(result?.data).slice(0, 500));
+      console.error("[video] Full Kling O3 response:", JSON.stringify(result?.data).slice(0, 500));
       saveVideoOnly(jobId, "ERROR");
-      throw new Error("No video URL in Seedance response");
+      throw new Error("No video URL in Kling O3 response");
     }
 
     console.log(`[video] Downloading from ${videoUrl}`);
