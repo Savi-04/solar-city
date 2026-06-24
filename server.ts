@@ -24,6 +24,7 @@ import {
   setJobOutput,
   getJob,
   saveJobLayers,
+  saveVideoOnly,
   logConsent,
   getRegistryCount,
   setPublicId,
@@ -519,6 +520,8 @@ async function startServer() {
     await fsPromises.mkdir(videosDir, { recursive: true });
     const videoPath = path.join(videosDir, `${job.public_id}.mp4`);
 
+    try {
+
     // Already generated — don't re-charge
     try { await fsPromises.access(videoPath); return; } catch {}
 
@@ -642,6 +645,12 @@ async function startServer() {
       .jpeg({ quality: 95 })
       .toBuffer();
 
+    // ── Upload starting frame to fal.ai storage (proper URL, not giant base64) ──
+    console.log(`[video] Uploading starting frame for ${jobId}...`);
+    const imageBlob = new Blob([startingFrame], { type: "image/jpeg" });
+    const uploadedImageUrl = await fal.storage.upload(imageBlob);
+    console.log(`[video] Frame uploaded → ${uploadedImageUrl}`);
+
     // ── Call fal.ai Seedance 2.0 ─────────────────────────────────────────────
     const PROMPT = [
       "Cinematic cyberpunk game intro, 9:16 vertical.",
@@ -659,7 +668,7 @@ async function startServer() {
 
     const result = await fal.subscribe("bytedance/seedance-2.0/fast/image-to-video", {
       input: {
-        image_url: `data:image/jpeg;base64,${startingFrame.toString("base64")}`,
+        image_url: uploadedImageUrl,
         prompt: PROMPT,
         duration: 5,
         resolution: "720p",
@@ -667,18 +676,38 @@ async function startServer() {
       },
       logs: true,
       onQueueUpdate: (update: any) => {
-        if (update.status === "IN_PROGRESS") console.log(`[video] Seedance progress for ${jobId}`);
+        console.log(`[video] Seedance status: ${update.status} for ${jobId}`);
       },
     }) as any;
 
-    const videoUrl: string | undefined = result?.data?.video?.url;
-    if (!videoUrl) throw new Error("No video URL in Seedance response");
+    // Log response keys to diagnose format issues
+    console.log(`[video] Seedance response keys: ${Object.keys(result?.data || {}).join(", ")}`);
 
+    // Handle multiple possible response formats across fal.ai models
+    const videoUrl: string | undefined =
+      result?.data?.video?.url ??
+      result?.data?.video_url ??
+      result?.data?.output?.video?.url ??
+      result?.data?.videos?.[0]?.url;
+
+    if (!videoUrl) {
+      console.error("[video] Full Seedance response:", JSON.stringify(result?.data).slice(0, 500));
+      saveVideoOnly(jobId, "ERROR");
+      throw new Error("No video URL in Seedance response");
+    }
+
+    console.log(`[video] Downloading from ${videoUrl}`);
     const videoRes = await fetch(videoUrl);
     if (!videoRes.ok) throw new Error(`Failed to download video: ${videoRes.status}`);
     const videoBuf = Buffer.from(await videoRes.arrayBuffer());
     await fsPromises.writeFile(videoPath, videoBuf);
     console.log(`[video] Saved ${videoBuf.length} bytes → ${videoPath}`);
+    } catch (err: any) {
+      console.error(`[video] generateCardVideo FAILED for ${jobId}:`, err?.message || err);
+      // Store error marker so the client stops polling and shows error state
+      saveVideoOnly(jobId, "ERROR");
+      throw err;
+    }
   }
 
   // Endpoints to serve the layers
@@ -987,6 +1016,14 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Reset video error state so the user can retry generation
+  app.post("/api/public/:publicId/video-reset", jobLimiter, (req: any, res: any) => {
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job) return res.status(404).json({ error: "Not found" });
+    if (job.video_b64 === "ERROR") saveVideoOnly(job.id, null as any);
+    res.json({ ok: true });
+  });
+
   // Full-resolution card JPEG for OG meta tag images (800×1066)
   app.get("/api/public/:publicId/og-card", jobLimiter, async (req: any, res: any) => {
     const job = getJobByPublicId(req.params.publicId);
@@ -1016,6 +1053,11 @@ async function startServer() {
     const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
     const videoPath = path.join(videosDir, `${req.params.publicId}.mp4`);
 
+    // ERROR marker: generation failed previously — stop polling, show error to client
+    if (job.video_b64 === "ERROR") {
+      return res.status(500).json({ status: "error", message: "Video generation failed — click Retry" });
+    }
+
     try {
       const stat = await fsPromises.stat(videoPath);
       res.setHeader("Content-Type", "video/mp4");
@@ -1024,7 +1066,7 @@ async function startServer() {
       res.setHeader("Cache-Control", "public, max-age=86400");
       createReadStream(videoPath).pipe(res);
     } catch {
-      // Video not yet on disk — trigger on-demand if card is ready
+      // Video not yet on disk — trigger on-demand if card is ready and not already running
       if (job.status === "DONE" && job.bg_layer_b64 && !videoGenInProgress.has(job.id)) {
         videoGenInProgress.add(job.id);
         generateCardVideo(job.id)

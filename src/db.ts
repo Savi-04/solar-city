@@ -118,6 +118,11 @@ export function saveJobVideo(jobId: string, video_b64: string) {
     .run(video_b64, 'DONE', `/api/jobs/${jobId}/mp4`, jobId);
 }
 
+// Stores a video file path OR 'ERROR' marker — does not touch job status
+export function saveVideoOnly(jobId: string, value: string) {
+  db.prepare('UPDATE jobs SET video_b64 = ? WHERE id = ?').run(value, jobId);
+}
+
 export function getJob(jobId: string): Job | undefined {
   return db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId) as Job | undefined;
 }

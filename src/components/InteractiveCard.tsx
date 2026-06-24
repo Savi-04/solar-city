@@ -157,7 +157,13 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   async function handleDownloadVideo() {
     if (!id && !jobId) return;
     setVideoState('generating');
-    const endpoint = `/api/public/${id || jobId}/video.mp4`;
+    const publicId = id || jobId;
+    const endpoint = `/api/public/${publicId}/video.mp4`;
+
+    // Clear any previous error state so server will retry generation
+    if (videoState === 'error') {
+      await fetch(`/api/public/${publicId}/video-reset`, { method: 'POST' }).catch(() => {});
+    }
 
     const tryDownload = async (): Promise<boolean> => {
       const res = await fetch(endpoint);
