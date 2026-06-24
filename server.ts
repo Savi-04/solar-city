@@ -686,9 +686,6 @@ async function startServer() {
     const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: "Not found" });
     if (!job.bg_layer_b64) return res.status(404).json({ error: "Layers not generated yet" });
-    const job = getJob(req.params.id);
-    if (!job) return res.status(404).json({ error: "Not found" });
-    if (!job.bg_layer_b64) return res.status(404).json({ error: "Layers not generated yet" });
 
     res.json({
       bg: "/api/jobs/" + job.id + "/bg",
