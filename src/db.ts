@@ -126,7 +126,7 @@ export function getJobByPublicId(publicId: string): Job | undefined {
 
 export function getRegistryCount(): { issued: number; remaining: number } {
   const row = db.prepare(
-    "SELECT COUNT(*) as count FROM jobs WHERE status NOT IN ('FAILED', 'CREATED') AND id != 'demo-card-v7'"
+    "SELECT COUNT(*) as count FROM jobs WHERE status = 'DONE' AND id != 'demo-card-v7'"
   ).get() as { count: number };
   return { issued: row.count, remaining: Math.max(0, 2000 - row.count) };
 }

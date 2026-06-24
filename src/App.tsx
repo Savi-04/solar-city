@@ -55,6 +55,7 @@ function MainFlow() {
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessingPayment] = useState(false);
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
+  const [publicId, setPublicId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -72,7 +73,8 @@ function MainFlow() {
               setIsUploading(false);
             }
 
-            if ((appState === "PREVIEW" || appState === "RENDERING") && (data.status === "DONE" || data.layers_ready)) {
+            if ((appState === "PREVIEW" || appState === "RENDERING") && data.status === "DONE") {
+              if (data.public_id) setPublicId(data.public_id);
               setAppState("SUCCESS");
               clearInterval(interval);
             } else if (data.status === "FAILED") {
@@ -200,7 +202,7 @@ function MainFlow() {
 
               <div className="space-y-3">
                 <motion.button
-                  onClick={() => navigate(`/card/${jobId}`)}
+                  onClick={() => navigate(publicId ? `/id/${publicId}` : `/`)}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
                   className="skeuo-btn w-full rounded-xl py-4 font-black tracking-[0.2em] text-sm relative overflow-hidden group"
@@ -221,7 +223,7 @@ function MainFlow() {
                 <button
                   onClick={() => {
                     const cardNum = playerNumber ? `#${playerNumber.toString().padStart(4, "0")}` : "";
-                    const url = `${window.location.origin}/card/${jobId}`;
+                    const url = `${window.location.origin}${publicId ? `/id/${publicId}` : "/create"}`;
                     const caption = cardNum
                       ? `Just got my Solara City Resident ID ${cardNum} 🌆 Get yours: ${url}`
                       : `Just got my Solara City Resident ID 🌆 Get yours: ${url}`;

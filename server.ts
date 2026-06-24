@@ -518,6 +518,7 @@ async function startServer() {
       layers_ready: !!job.bg_layer_b64,
       player_number: job.player_number,
       district: job.district,
+      public_id: job.public_id,
     });
   });
 
