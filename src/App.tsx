@@ -8,6 +8,7 @@ import InteractiveCard from "./components/InteractiveCard";
 import LandingPage from "./pages/LandingPage";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import AdminPaidUsers from "./pages/AdminPaidUsers";
 
 type AppState = "UPLOAD" | "PREVIEW" | "RENDERING" | "SUCCESS";
 
@@ -299,6 +300,7 @@ export default function App() {
       <Route path="/id/:id" element={<InteractiveCard />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/paid-users" element={<AdminPaidUsers />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
