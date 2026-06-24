@@ -62,8 +62,11 @@ async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
 
+  const uploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: "Too many requests, try again later" } });
+  const jobLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+
   // fal.ai proxy — must be before express.json() so raw body is not pre-consumed
-  app.use("/api/fal/proxy", express.raw({ type: "*/*", limit: "50mb" }), async (req: any, res: any) => {
+  app.use("/api/fal/proxy", jobLimiter, express.raw({ type: "*/*", limit: "50mb" }), async (req: any, res: any) => {
     const targetUrl = req.headers["x-fal-target-url"] as string;
     if (!targetUrl) { res.status(400).json({ error: "Missing x-fal-target-url" }); return; }
     const headers: Record<string, string> = { "Authorization": `Key ${process.env.FAL_KEY}` };
@@ -81,10 +84,18 @@ async function startServer() {
   });
 
   app.use(express.json({ limit: "50mb" }));
-  app.use(helmet({ contentSecurityPolicy: false }));
-
-  const uploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: "Too many requests, try again later" } });
-  const jobLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'", "https://open.er-api.com", "https://*.fal.run", "https://*.fal.ai"],
+        frameSrc: ["'none'"],
+      }
+    }
+  }));
 
   // API Routes
   app.get("/api/health", (req, res) => {
@@ -118,7 +129,8 @@ async function startServer() {
       if (remaining <= 0) return res.status(410).json({ error: "All 2,000 Solara City resident IDs have been issued." });
 
       const jobId = crypto.randomUUID();
-      const playerNumber = createJob(jobId, name, city);
+      const completeToken = crypto.randomBytes(16).toString("hex");
+      const playerNumber = createJob(jobId, name, city, completeToken);
       const rawIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
       const ipHash = crypto.createHash("sha256").update(rawIp).digest("hex");
       logConsent(jobId, age_confirmed === "true", ownership_confirmed === "true", privacy_accepted === "true", ipHash);
@@ -146,7 +158,7 @@ async function startServer() {
         return res.status(400).json({ error: "Image failed safety check or isn't a clear adult human face" });
       }
 
-      res.json({ jobId, playerNumber });
+      res.json({ jobId, playerNumber, completeToken });
 
       const job = getJob(jobId);
       const district = job?.district || 'SUNRISE COAST';
@@ -157,7 +169,7 @@ async function startServer() {
 
     } catch (err: any) {
       console.error(err);
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Card generation failed. Please try again." });
     }
   });
 
@@ -505,7 +517,7 @@ async function startServer() {
     res.json(getRegistryCount());
   });
 
-  app.get("/api/jobs/:id", (req, res) => {
+  app.get("/api/jobs/:id", jobLimiter, (req, res) => {
     const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: "Not found" });
     res.json({
@@ -595,6 +607,7 @@ async function startServer() {
   // Only accepts jobs in PREVIEW_READY status to prevent replaying against arbitrary UUIDs.
   app.get("/api/gumroad/complete", (req: any, res: any) => {
     const jobId = req.query.job_id as string | undefined;
+    const token = req.query.token as string | undefined;
     if (!jobId) return res.redirect("/");
 
     const job = getJob(jobId);
@@ -604,6 +617,11 @@ async function startServer() {
         return res.redirect(job.public_id ? `/id/${job.public_id}` : "/");
       }
       return res.redirect("/");
+    }
+
+    // Verify the one-time complete token to prevent payment bypass
+    if (!token || !job.complete_token || token !== job.complete_token) {
+      return res.status(403).send("Invalid or missing token.");
     }
 
     updateJobStatus(jobId, "DONE");

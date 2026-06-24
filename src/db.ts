@@ -43,6 +43,7 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN platform TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN district TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN public_id TEXT;'); } catch (e) {}
 try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_public_id ON jobs(public_id) WHERE public_id IS NOT NULL;'); } catch (e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN complete_token TEXT;'); } catch (e) {}
 
 export interface Job {
   id: string;
@@ -62,6 +63,7 @@ export interface Job {
   platform: string | null;
   district: string | null;
   public_id: string | null;
+  complete_token: string | null;
   created_at: string;
 }
 
@@ -75,12 +77,12 @@ function randomDistrict(): string {
 }
 
 // Assigns the next sequential player_number atomically in SQLite
-export function createJob(jobId: string, name: string, city: string): number {
+export function createJob(jobId: string, name: string, city: string, completeToken: string): number {
   const district = randomDistrict();
   db.prepare(`
-    INSERT INTO jobs (id, status, name_input, city_input, district, player_number)
-    VALUES (?, 'CREATED', ?, ?, ?, (SELECT COALESCE(MAX(player_number), 0) + 1 FROM jobs))
-  `).run(jobId, name, city, district);
+    INSERT INTO jobs (id, status, name_input, city_input, district, player_number, complete_token)
+    VALUES (?, 'CREATED', ?, ?, ?, (SELECT COALESCE(MAX(player_number), 0) + 1 FROM jobs), ?)
+  `).run(jobId, name, city, district, completeToken);
   const row = db.prepare('SELECT player_number FROM jobs WHERE id = ?').get(jobId) as { player_number: number };
   return row.player_number;
 }

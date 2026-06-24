@@ -152,7 +152,17 @@ function LeaderboardSection() {
       .catch(() => setLoaded(true));
   }, []);
 
-  if (!loaded || entries.length === 0) return null;
+  if (!loaded) return null;
+
+  if (entries.length === 0) {
+    return (
+      <section className="relative z-10 py-12 px-4 text-center">
+        <p className="font-mono text-[9px] tracking-[0.35em] text-white/20 uppercase">
+          Hall of Citizens · No residents yet — be the first
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="relative z-10 py-16 px-4">
@@ -287,7 +297,7 @@ export default function LandingPage() {
                 className="text-transparent bg-clip-text"
                 style={{ backgroundImage: "linear-gradient(90deg, #ff2060 0%, #ff8c00 50%, #ffdd00 100%)" }}
               >
-                Neon city.
+                Solara City.
               </span>
               <br />A card that{" "}
               <span
@@ -304,7 +314,7 @@ export default function LandingPage() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="mt-5 font-mono text-[13px] text-white/42 leading-relaxed max-w-sm lg:max-w-none"
             >
-              Upload a selfie. Get your numbered holographic player card in Miami neon style.
+              Upload a selfie. Get your numbered holographic player card in Solara City style.
               Share the flex — less than a coffee.
             </motion.p>
 
@@ -426,7 +436,7 @@ export default function LandingPage() {
               num="2"
               icon={<Cpu className="w-5 h-5 text-[#ff2060]" />}
               title="AI stylizes your portrait"
-              desc="AI transforms your face into a neon-noir painting in Solara City style. Takes about 30 seconds."
+              desc="AI transforms your face into graphic-novel art in Solara City style. Takes about 30 seconds."
               delay={0.1}
             />
             <Step

@@ -41,7 +41,7 @@ export default function Privacy() {
               {[
                 "Your selfie or source photo — it is processed in memory only and never written to any database or storage bucket.",
                 "Biometric data or face embeddings of any kind.",
-                "Payment information — the service is currently free, no payment data is collected.",
+                "Payment details — we do not receive or store your card number or bank details. Payments are processed entirely by Gumroad (see Section 5).",
                 "Browser history, cookies for tracking, or any analytics beyond a simple daily card count.",
                 "Device fingerprints or session recordings.",
               ].map((item) => (
@@ -76,7 +76,8 @@ export default function Privacy() {
             <div className="space-y-2">
               {[
                 ["Google Gemini API", "Content moderation — your photo is sent to Google's API to check it contains a valid human face, then discarded. Google processes this under their API terms.", "ai.google.dev"],
-                ["fal.ai (Fal Inc.)", "AI image stylisation — your portrait is processed via fal.ai's inference API to apply the neon-city art style. Images are discarded after processing per their data policy.", "fal.ai/privacy"],
+                ["fal.ai (Fal Inc.)", "AI image stylisation — your portrait is processed via fal.ai's inference API to apply the Solara City art style. Images are discarded after processing per their data policy.", "fal.ai/privacy"],
+                ["Gumroad Inc.", "Payment processing — your name, email address, and payment details are processed by Gumroad when you purchase a Card. We receive only a confirmation that payment was completed. See Gumroad's privacy policy for details.", "gumroad.com/privacy"],
                 ["Cloudflare", "CDN and bot protection. Cloudflare may process your IP to deliver the service.", "cloudflare.com/privacypolicy"],
               ].map(([name, desc, url]) => (
                 <div key={name} className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -92,7 +93,8 @@ export default function Privacy() {
             <h2 className="text-base font-bold text-white/90 mb-3 tracking-wide">6. Data retention</h2>
             <ul className="space-y-1.5 list-none">
               {[
-                "Generated card assets (layers, preview) — deleted automatically 7 days after creation.",
+                "Paid card assets (layers, shareable link) — stored indefinitely so your card remains accessible at your unique URL.",
+                "Unpaid preview assets (where payment was not completed) — deleted automatically 7 days after creation.",
                 "Consent log entries — retained for 12 months to comply with GDPR accountability requirements, then deleted.",
                 "Hashed IP addresses — deleted with the consent log entry.",
               ].map((item) => (

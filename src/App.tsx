@@ -56,6 +56,7 @@ function MainFlow() {
   const [isProcessingPayment] = useState(false);
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
   const [publicId, setPublicId] = useState<string | null>(null);
+  const [completeToken, setCompleteToken] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -106,6 +107,7 @@ function MainFlow() {
 
       setJobId(data.jobId);
       if (data.playerNumber) setPlayerNumber(data.playerNumber);
+      if (data.completeToken) setCompleteToken(data.completeToken);
 
       // Check once immediately — preview might already be ready
       const pollRes = await fetch(`/api/jobs/${data.jobId}`);
@@ -151,6 +153,7 @@ function MainFlow() {
           onPay={handlePayBypass}
           isProcessingPayment={isProcessingPayment}
           playerNumber={playerNumber}
+          completeToken={completeToken ?? undefined}
         />
       )}
 

@@ -10,6 +10,7 @@ interface PreviewStepProps {
   onPay: () => void;
   isProcessingPayment: boolean;
   playerNumber?: number | null;
+  completeToken?: string;
 }
 
 function HudCorners({ color = "#00e8ff" }: { color?: string }) {
@@ -31,13 +32,13 @@ const FEATURES = [
   { icon: <LinkIcon className="w-3 h-3" />, label: "Shareable link + download for IG / X / TikTok", color: "#b8ff3c" },
 ];
 
-export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isProcessingPayment, playerNumber }: PreviewStepProps) {
+export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isProcessingPayment, playerNumber, completeToken }: PreviewStepProps) {
   const [district, setDistrict] = useState<string | null>(null);
   const localPrice = useCurrencyPrice();
 
   const gumroadProductUrl = import.meta.env.VITE_GUMROAD_PRODUCT_URL as string | undefined;
   const completeUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/api/gumroad/complete?job_id=${encodeURIComponent(jobId)}`
+    ? `${window.location.origin}/api/gumroad/complete?job_id=${encodeURIComponent(jobId)}${completeToken ? `&token=${encodeURIComponent(completeToken)}` : ""}`
     : "";
   const gumroadHref = gumroadProductUrl
     ? `${gumroadProductUrl}?wanted=${encodeURIComponent(completeUrl)}`

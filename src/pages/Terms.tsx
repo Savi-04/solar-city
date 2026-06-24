@@ -45,9 +45,10 @@ export default function Terms() {
             <h2 className="text-base font-bold text-white/90 mb-3 tracking-wide">4. Pricing and delivery</h2>
             <ul className="space-y-2 list-none">
               {[
-                ["Current pricing", "The Service is currently free during the beta period. Pricing may be introduced in future — you will be informed before any charge is made."],
-                ["Delivery", "Your Card is delivered digitally within approximately 2 minutes of submission. You will receive a shareable link immediately on the result page."],
-                ["Data expiry", "Generated assets (card layers, shareable links) may be deleted 7 days after creation. Download or bookmark your card promptly if you wish to keep it."],
+                ["Current pricing", "The Card is available for a one-time fee of €19.99 (approximate local equivalent shown at checkout), processed via Gumroad. The fee is charged before your Card link is issued."],
+                ["Delivery", "Your Card is delivered digitally within approximately 2 minutes of submission. You will receive a permanent shareable link on the result page."],
+                ["Data expiry", "Paid Cards are stored indefinitely — your shareable link will continue to work. Unpaid previews (where payment was not completed) are deleted 7 days after generation."],
+                ["Refund policy", "Because Cards are digital goods delivered immediately on payment, we do not offer refunds except where required by applicable law. Under the EU Consumer Rights Directive, the 14-day cooling-off period does not apply to digital content that has been fully delivered with the consumer's prior consent (Article 16(m)). If you believe you are entitled to a refund, contact us at shivangsomvanshi124@gmail.com within 14 days of purchase."],
               ].map(([label, desc]) => (
                 <li key={label} className="flex items-start space-x-3">
                   <span className="text-white/30 mt-0.5 shrink-0">·</span>
