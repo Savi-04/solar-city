@@ -125,7 +125,7 @@ async function startServer() {
   // Step A: Upload & Validate
   app.post("/api/upload", uploadLimiter, async (req, res) => {
     try {
-      let { selfie_url, name, city, age_confirmed, ownership_confirmed, privacy_accepted } = req.body;
+      let { selfie_url, name, city, skill, age_confirmed, ownership_confirmed, privacy_accepted } = req.body;
       if (!selfie_url) return res.status(400).json({ error: "No image provided" });
 
       // SSRF guard — only allow fal.media CDN URLs
@@ -140,6 +140,7 @@ async function startServer() {
       }
       name = (name || "UNKNOWN").slice(0, 50);
       city = (city || "UNKNOWN").slice(0, 50);
+      skill = (skill || "CITIZEN").slice(0, 30);
 
       if (!age_confirmed || !ownership_confirmed || !privacy_accepted) {
         return res.status(400).json({ error: "Consent required" });
@@ -150,7 +151,7 @@ async function startServer() {
 
       const jobId = crypto.randomUUID();
       const completeToken = crypto.randomBytes(16).toString("hex");
-      const playerNumber = createJob(jobId, name, city, completeToken);
+      const playerNumber = createJob(jobId, name, city, skill, completeToken);
       const rawIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
       const ipHash = crypto.createHash("sha256").update(rawIp).digest("hex");
       logConsent(jobId, age_confirmed === "true", ownership_confirmed === "true", privacy_accepted === "true", ipHash);
@@ -182,7 +183,7 @@ async function startServer() {
 
       const job = getJob(jobId);
       const district = job?.district || 'SUNRISE COAST';
-      buildCardInBackground(jobId, name, city, district, playerNumber, selfie_url).catch((err) => {
+      buildCardInBackground(jobId, name, city, skill, district, playerNumber, selfie_url).catch((err) => {
         console.error("Background card build failed", err);
         updateJobStatus(jobId, "FAILED");
       });
@@ -196,7 +197,7 @@ async function startServer() {
   // Runs fully in background after upload responds
   async function buildCardInBackground(
     jobId: string, name: string, city: string,
-    district: string, playerNumber: number,
+    skill: string, district: string, playerNumber: number,
     imageUrl: string
   ) {
     let stylizedBase64: string | null = null;
@@ -450,15 +451,15 @@ async function startServer() {
           fill="#e8f4f8" font-family="'Courier New',monospace"
           font-size="7" letter-spacing="1" opacity="0.82">${district}</text>
 
-        <!-- CLEARANCE value (lime — verified) -->
+        <!-- SKILL value -->
         <text x="135" y="458"
           fill="#b8ff3c" font-family="'Courier New',monospace"
-          font-size="7" letter-spacing="1">UNRESTRICTED</text>
+          font-size="7" letter-spacing="1">${skill.toUpperCase()}</text>
 
         <!-- ISSUED value -->
         <text x="135" y="472"
           fill="#e8f4f8" font-family="'Courier New',monospace"
-          font-size="7" letter-spacing="1" opacity="0.82">2025</text>
+          font-size="7" letter-spacing="1" opacity="0.82">${new Date().toISOString().slice(0, 10)}</text>
       </svg>
     `;
 
@@ -1072,10 +1073,10 @@ async function generateDemoCard() {
         font-size="7" letter-spacing="1" opacity="0.82">NEON QUARTER</text>
       <text x="135" y="458"
         fill="#b8ff3c" font-family="'Courier New',monospace"
-        font-size="7" letter-spacing="1">UNRESTRICTED</text>
+        font-size="7" letter-spacing="1">HACKER</text>
       <text x="135" y="472"
         fill="#e8f4f8" font-family="'Courier New',monospace"
-        font-size="7" letter-spacing="1" opacity="0.82">2025</text>
+        font-size="7" letter-spacing="1" opacity="0.82">${new Date().toISOString().slice(0, 10)}</text>
     </svg>
   `;
 

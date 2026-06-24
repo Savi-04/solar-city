@@ -43,6 +43,8 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
   const [preview, setPreview] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
+  const [skill, setSkill] = useState("");
+  const [touched, setTouched] = useState({ name: false, city: false, skill: false });
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [ownershipConfirmed, setOwnershipConfirmed] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
@@ -77,7 +79,12 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !name || !city || !ageConfirmed || !ownershipConfirmed || !privacyAccepted) return;
+    // Mark all fields touched so errors show on submit attempt
+    if (!name || !city || !skill) {
+      setTouched({ name: true, city: true, skill: true });
+      return;
+    }
+    if (!file || !ageConfirmed || !ownershipConfirmed || !privacyAccepted) return;
 
     setFalError(null);
     setFalUploading(true);
@@ -87,6 +94,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
       fd.append("selfie_url", selfie_url);
       fd.append("name", name);
       fd.append("city", city);
+      fd.append("skill", skill);
       fd.append("age_confirmed", ageConfirmed.toString());
       fd.append("ownership_confirmed", ownershipConfirmed.toString());
       fd.append("privacy_accepted", privacyAccepted.toString());
@@ -99,7 +107,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
   };
 
   const busy = isUploading || falUploading;
-  const canSubmit = file && name && city && ageConfirmed && ownershipConfirmed && privacyAccepted && !busy;
+  const canSubmit = file && name && city && skill && ageConfirmed && ownershipConfirmed && privacyAccepted && !busy;
 
   return (
     <motion.div
@@ -232,10 +240,12 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setTouched(t => ({ ...t, name: true }))}
                   className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/12"
                   placeholder="ALEX NOVA"
                   maxLength={15}
                 />
+                {touched.name && !name && <p className="font-mono text-[9px] text-[#ff4444] mt-1">Name is required</p>}
               </div>
               <div>
                 <div className="flex items-center space-x-1.5 mb-1.5">
@@ -246,11 +256,31 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
+                  onBlur={() => setTouched(t => ({ ...t, city: true }))}
                   className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/12"
                   placeholder="SOLARA CITY"
                   maxLength={20}
                 />
+                {touched.city && !city && <p className="font-mono text-[9px] text-[#ff4444] mt-1">City is required</p>}
               </div>
+            </div>
+
+            {/* Skill / Role */}
+            <div>
+              <div className="flex items-center space-x-1.5 mb-1.5">
+                <div className="w-1 h-1 rounded-full bg-[#b8ff3c]" style={{ boxShadow: "0 0 4px #b8ff3c" }} />
+                <label className="text-[9px] font-mono text-[#b8ff3c]/55 tracking-[0.28em] uppercase">Skill / Role</label>
+              </div>
+              <input
+                type="text"
+                value={skill}
+                onChange={(e) => setSkill(e.target.value)}
+                onBlur={() => setTouched(t => ({ ...t, skill: true }))}
+                className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/12"
+                placeholder="HACKER · PILOT · MEDIC"
+                maxLength={20}
+              />
+              {touched.skill && !skill && <p className="font-mono text-[9px] text-[#ff4444] mt-1">Skill is required</p>}
             </div>
 
             {/* Consent panel */}

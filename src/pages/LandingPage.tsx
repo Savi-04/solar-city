@@ -575,16 +575,16 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ─────────────────────────────────────────────────────── */}
-      <footer className="relative z-10 border-t border-white/5 py-8 px-4 mt-4">
+      <footer className="relative z-10 border-t border-white/10 py-8 px-4 mt-4">
         <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="font-mono text-[9px] text-white/20 tracking-widest text-center">
+          <p className="font-mono text-[9px] text-white/40 tracking-widest text-center">
             SOLARA CITY BUREAU OF RESIDENTS · OFFICIAL DOCUMENT · SC-2025
           </p>
           <div className="flex items-center space-x-6">
-            <Link to="/privacy" className="font-mono text-[9px] text-white/28 hover:text-white/55 tracking-widest uppercase transition-colors flex items-center space-x-1">
+            <Link to="/privacy" className="font-mono text-[9px] text-white/45 hover:text-white/70 tracking-widest uppercase transition-colors flex items-center space-x-1">
               <span>Privacy</span><ExternalLink className="w-2.5 h-2.5" />
             </Link>
-            <Link to="/terms" className="font-mono text-[9px] text-white/28 hover:text-white/55 tracking-widest uppercase transition-colors flex items-center space-x-1">
+            <Link to="/terms" className="font-mono text-[9px] text-white/45 hover:text-white/70 tracking-widest uppercase transition-colors flex items-center space-x-1">
               <span>Terms</span><ExternalLink className="w-2.5 h-2.5" />
             </Link>
           </div>
