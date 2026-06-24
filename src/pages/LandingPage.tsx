@@ -224,7 +224,7 @@ export default function LandingPage() {
 
               <div className="flex items-center space-x-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#00ff7f]" style={{ boxShadow: "0 0 5px #00ff7f" }} />
-                <span className="font-mono text-[10px] text-white/28 tracking-widest">€3.99 · no account needed</span>
+                <span className="font-mono text-[10px] text-white/28 tracking-widest">$19.99 · no account needed</span>
               </div>
             </motion.div>
 
@@ -235,7 +235,7 @@ export default function LandingPage() {
               transition={{ delay: 0.5 }}
               className="mt-6 flex items-center space-x-4 flex-wrap gap-y-2 justify-center lg:justify-start"
             >
-              {["🔒 Stripe payments", "⚡ ~2 min delivery", "🗑 No selfie stored"].map((t) => (
+              {["🔒 Gumroad checkout", "⚡ ~2 min delivery", "🗑 No selfie stored"].map((t) => (
                 <span key={t} className="font-mono text-[9px] text-white/22 tracking-widest">{t}</span>
               ))}
             </motion.div>
@@ -350,7 +350,7 @@ export default function LandingPage() {
               className="text-5xl font-black mb-1"
               style={{ color: "#ff2060", textShadow: "0 0 24px rgba(255,32,96,0.35)" }}
             >
-              €3.99
+              $19.99
             </p>
             <p className="font-mono text-[11px] text-white/30 tracking-widest mb-6">No account. No subscription. Instant delivery.</p>
 
