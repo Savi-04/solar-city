@@ -535,25 +535,38 @@ async function startServer() {
       create: { width: BASE_W, height: BASE_H, channels: 4, background: { r: 3, g: 3, b: 11, alpha: 255 } },
     }).png().toBuffer();
 
-    // Extract the stylized portrait face (520×600 at position 140,100 in the 800×1066 layer)
-    const portraitFaceBuffer = await sharp(Buffer.from(job.portrait_layer_b64, "base64"))
-      .extract({ left: 140, top: 100, width: 520, height: 600 })
-      .resize(560, 646, { fit: "fill" })
+    // Step 1: flat portrait face — extract the face region from the portrait layer
+    const portraitLayerBuf = Buffer.from(job.portrait_layer_b64, "base64");
+    const { width: pW = 800, height: pH = 1066 } = await sharp(portraitLayerBuf).metadata();
+    console.log(`[video] portrait layer: ${pW}×${pH}`);
+
+    // Safe extract bounds — fall back to full layer resize if layer is smaller than expected
+    const canExtract = pW >= 660 && pH >= 700;
+    const portraitFaceBuffer = canExtract
+      ? await sharp(portraitLayerBuf)
+          .extract({ left: 140, top: 100, width: 520, height: 600 })
+          .resize(560, 646, { fit: "fill" })
+          .png()
+          .toBuffer()
+      : await sharp(portraitLayerBuf)
+          .resize(560, 646, { fit: "cover" })
+          .png()
+          .toBuffer();
+
+    // Step 2a: composite the 4 card layers — identical to og-card (known working)
+    const fullCardBuf = await sharp(Buffer.from(job.bg_layer_b64, "base64"))
+      .composite([
+        { input: Buffer.from(job.portrait_layer_b64, "base64") },
+        { input: Buffer.from(job.frame_layer_b64, "base64") },
+        { input: Buffer.from(job.text_layer_b64, "base64") },
+      ])
       .png()
       .toBuffer();
+    const { width: fullW = 800, height: fullH = 1066 } = await sharp(fullCardBuf).metadata();
+    console.log(`[video] full card composite: ${fullW}×${fullH}`);
 
-    // Full card composite — ensure all layers match bg dimensions before compositing
-    const bgLayerBuf = Buffer.from(job.bg_layer_b64, "base64");
-    const { width: layerW = 800, height: layerH = 1066 } = await sharp(bgLayerBuf).metadata();
-    const ensureLayerSize = async (b64: string) =>
-      sharp(Buffer.from(b64, "base64")).resize(layerW, layerH, { fit: "fill" }).png().toBuffer();
-
-    const cardComposite = await sharp(bgLayerBuf)
-      .composite([
-        { input: await ensureLayerSize(job.portrait_layer_b64) },
-        { input: await ensureLayerSize(job.frame_layer_b64) },
-        { input: await ensureLayerSize(job.text_layer_b64) },
-      ])
+    // Step 2b: scale and rotate in a separate Sharp call (not chained after composite)
+    const cardComposite = await sharp(fullCardBuf)
       .resize(360, 480)
       .rotate(-6, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
