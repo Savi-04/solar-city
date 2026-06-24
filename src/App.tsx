@@ -127,10 +127,31 @@ function MainFlow() {
   };
 
   const handlePayBypass = () => {
-    // Gumroad overlay opens in PreviewStep; transition to RENDERING so polling
-    // continues while waiting for the Gumroad webhook to mark the job DONE.
+    // Save pending job to localStorage so recovery works if the browser redirect fails
+    if (jobId) {
+      localStorage.setItem('solarPendingJob', JSON.stringify({ jobId, completeToken }));
+    }
     setAppState("RENDERING");
   };
+
+  // Clear localStorage recovery entry when card is successfully delivered
+  useEffect(() => {
+    if (appState === 'SUCCESS') localStorage.removeItem('solarPendingJob');
+  }, [appState]);
+
+  // Rehydrate RENDERING state on mount if a pending job exists in localStorage
+  useEffect(() => {
+    const raw = localStorage.getItem('solarPendingJob');
+    if (!raw || jobId) return;
+    try {
+      const { jobId: saved } = JSON.parse(raw);
+      if (saved) {
+        setJobId(saved);
+        setAppState("RENDERING");
+      }
+    } catch { localStorage.removeItem('solarPendingJob'); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col pt-12 pb-24 px-4 relative">
@@ -247,6 +268,30 @@ function MainFlow() {
 }
 
 export default function App() {
+  // On any page load, check if there's a paid-but-undelivered job in localStorage.
+  // If the job is now DONE (webhook fired while user was on Gumroad), navigate to the card.
+  useEffect(() => {
+    const raw = localStorage.getItem('solarPendingJob');
+    if (!raw) return;
+    try {
+      const { jobId } = JSON.parse(raw);
+      if (!jobId) return;
+      fetch(`/api/jobs/${jobId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'DONE' && data.public_id) {
+            localStorage.removeItem('solarPendingJob');
+            if (!window.location.pathname.startsWith('/id/')) {
+              window.location.href = `/id/${data.public_id}`;
+            }
+          }
+          // If still processing, MainFlow rehydration (above) handles it when user visits /create
+        })
+        .catch(() => {});
+    } catch { localStorage.removeItem('solarPendingJob'); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />

@@ -1041,4 +1041,39 @@ function runCleanup() {
 runCleanup();
 setInterval(runCleanup, 24 * 60 * 60 * 1000);
 
+// Gumroad API sync — catches any sales where the webhook was missed.
+// Only runs when GUMROAD_ACCESS_TOKEN env var is set.
+async function syncGumroadSales() {
+  const token = process.env.GUMROAD_ACCESS_TOKEN;
+  if (!token) return;
+  try {
+    const r = await fetch(`https://api.gumroad.com/v2/sales?access_token=${token}&after=2025-01-01`);
+    const data = await r.json() as any;
+    if (!data.success || !Array.isArray(data.sales)) return;
+    for (const sale of data.sales) {
+      const wantedUrl = sale.url_params?.wanted as string | undefined;
+      if (!wantedUrl) continue;
+      try {
+        const parsed = new URL(wantedUrl);
+        const jobId = parsed.searchParams.get("job_id");
+        const tok = parsed.searchParams.get("token");
+        if (!jobId || !tok) continue;
+        const job = getJob(jobId);
+        if (job && job.status === "PREVIEW_READY" && job.complete_token === tok) {
+          updateJobStatus(jobId, "DONE");
+          const publicId = generatePublicId();
+          setPublicId(jobId, publicId);
+          if (sale.email) setBuyerEmail(jobId, sale.email);
+          console.log(`Gumroad sync: rescued job ${jobId} → /id/${publicId}`);
+        }
+      } catch { /* skip malformed entries */ }
+    }
+  } catch (err) {
+    console.error("Gumroad sync error:", err);
+  }
+}
+
+syncGumroadSales();
+setInterval(syncGumroadSales, 30 * 60 * 1000);
+
 startServer().catch(console.error);

@@ -146,10 +146,15 @@ function LeaderboardSection() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/api/leaderboard")
-      .then((r) => r.json())
-      .then((data) => { setEntries(data); setLoaded(true); })
-      .catch(() => setLoaded(true));
+    const load = () => {
+      fetch("/api/leaderboard")
+        .then((r) => r.json())
+        .then((data) => { setEntries(data); setLoaded(true); })
+        .catch(() => setLoaded(true));
+    };
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   if (!loaded) return null;

@@ -9,12 +9,13 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   const [layers, setLayers] = useState<{ bg: string, frame: string, portrait: string, text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paymentPending, setPaymentPending] = useState(false);
-  
+  const [gyroPermission, setGyroPermission] = useState<'unavailable' | 'prompt' | 'granted' | 'denied'>('unavailable');
+
   const cardRef = useRef<HTMLDivElement>(null);
-  
+
   const mouseX = useMotionValue(0.5);
   const mouseY = useMotionValue(0.5);
-  
+
   const springConfig = { damping: 20, stiffness: 100, mass: 1 };
   const springX = useSpring(mouseX, springConfig);
   const springY = useSpring(mouseY, springConfig);
@@ -24,31 +25,23 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   const rotateY = useTransform(springX, [0, 1], [-15, 15]);
 
   // Parallax offsets for the layers
-  // Background stays relatively still
   const bgX = useTransform(springX, [0, 1], [2, -2]);
   const bgY = useTransform(springY, [0, 1], [2, -2]);
-  
-  // Portrait moves slightly more than bg
   const portraitX = useTransform(springX, [0, 1], [-5, 5]);
   const portraitY = useTransform(springY, [0, 1], [-5, 5]);
-  
-  // Frame and text move a bit
   const frameX = useTransform(springX, [0, 1], [-10, 10]);
   const frameY = useTransform(springY, [0, 1], [-10, 10]);
-  
-  // Text pops out the most
   const textX = useTransform(springX, [0, 1], [-15, 15]);
   const textY = useTransform(springY, [0, 1], [-15, 15]);
 
   // Holographic foil shimmer sweeping effect based on rotation
-  // When rotated, shift the background position of a gradient
   const shimmerPosition = useTransform(springX, [0, 1], ['-100%', '200%']);
 
-  // Ambient glow orb that tracks tilt — must be at top level (not inside JSX)
+  // Ambient glow orb that tracks tilt
   const glowX = useTransform(springX, [0, 1], [-100, 100]);
   const glowY = useTransform(springY, [0, 1], [-100, 100]);
   const shimmerBgPos = useTransform(shimmerPosition, (val: string) => `${val} 0%`);
-  
+
   // Idle sine-sweep for demo / landing page
   useEffect(() => {
     if (!autoAnimate) return;
@@ -63,7 +56,33 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     return () => cancelAnimationFrame(animId);
   }, [autoAnimate, mouseX, mouseY]);
 
-  // Touch tilt + scroll prevention — must re-run after layers load (cardRef is null during loading spinner)
+  // Detect whether gyroscope permission is needed (iOS 13+) or auto-available (Android)
+  useEffect(() => {
+    if (!window.DeviceOrientationEvent) return;
+    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      setGyroPermission('prompt'); // iOS 13+ — needs user gesture
+    } else {
+      setGyroPermission('granted'); // Android / desktop — events fire automatically
+    }
+  }, []);
+
+  // Register deviceorientation listener once permission is granted
+  useEffect(() => {
+    if (gyroPermission !== 'granted') return;
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.beta === null || e.gamma === null) return;
+      // gamma: left-right tilt. -45° to +45° → 0 to 1 (neutral at 0° = 0.5)
+      const x = (e.gamma + 45) / 90;
+      // beta: front-back tilt. Upright = ~90°. Map ±30° from upright to 0–1.
+      const y = (e.beta - 90) / 60 + 0.5;
+      mouseX.set(Math.max(0, Math.min(1, x)));
+      mouseY.set(Math.max(0, Math.min(1, y)));
+    };
+    window.addEventListener('deviceorientation', handleOrientation);
+    return () => window.removeEventListener('deviceorientation', handleOrientation);
+  }, [gyroPermission, mouseX, mouseY]);
+
+  // Touch tilt + scroll prevention
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
@@ -110,7 +129,10 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       try {
         const res = await fetch(`${apiBase}/layers`);
         if (!res.ok) throw new Error("layers_not_found");
-        if (!cancelled) setLayers(await res.json());
+        if (!cancelled) {
+          setLayers(await res.json());
+          localStorage.removeItem('solarPendingJob'); // card delivered — clear recovery entry
+        }
       } catch {
         if (!cancelled) {
           if (standalone) navigate("/");
@@ -121,48 +143,19 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
 
     loadCard();
 
-    // Handle device orientation for mobile touch-tilt
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      // beta is front-to-back tilt in degrees, where front is positive
-      // gamma is left-to-right tilt in degrees, where right is positive
-      if (e.beta === null || e.gamma === null) return;
-      
-      // Normalize to 0-1 range
-      let x = (e.gamma + 45) / 90; // clamp ~ -45 to 45
-      let y = (e.beta - 45 + 45) / 90; // clamp ~ 0 to 90 (assumes holding phone upright)
-      
-      x = Math.max(0, Math.min(1, x));
-      y = Math.max(0, Math.min(1, y));
-      
-      mouseX.set(x);
-      mouseY.set(y);
-    };
-
-    if (window.DeviceOrientationEvent) {
-      window.addEventListener('deviceorientation', handleOrientation);
-    }
-    
     return () => {
       cancelled = true;
       if (pollTimer) clearTimeout(pollTimer);
-      if (window.DeviceOrientationEvent) {
-        window.removeEventListener('deviceorientation', handleOrientation);
-      }
     };
-  }, [activeId, mouseX, mouseY, standalone]);
+  }, [activeId, standalone, navigate]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
-    
-    // Calculate normalized position (0 to 1) inside the card wrapper
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    
-    mouseX.set(x);
-    mouseY.set(y);
+    mouseX.set((e.clientX - rect.left) / rect.width);
+    mouseY.set((e.clientY - rect.top) / rect.height);
   };
-  
+
   const handleMouseLeave = () => {
     mouseX.set(0.5);
     mouseY.set(0.5);
@@ -179,7 +172,13 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
 
   if (paymentPending) {
     const gumroadProductUrl = import.meta.env.VITE_GUMROAD_PRODUCT_URL as string | undefined;
-    const completeUrl = `${window.location.origin}/api/gumroad/complete?job_id=${encodeURIComponent(activeId || "")}`;
+    // Retrieve token from localStorage so the complete URL passes security check
+    let savedToken: string | undefined;
+    try {
+      const raw = localStorage.getItem('solarPendingJob');
+      if (raw) savedToken = JSON.parse(raw)?.completeToken ?? undefined;
+    } catch { /* ignore */ }
+    const completeUrl = `${window.location.origin}/api/gumroad/complete?job_id=${encodeURIComponent(activeId || "")}${savedToken ? `&token=${encodeURIComponent(savedToken)}` : ""}`;
     const gumroadHref = gumroadProductUrl
       ? `${gumroadProductUrl}?wanted=${encodeURIComponent(completeUrl)}`
       : undefined;
@@ -320,6 +319,21 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
           <p className="font-mono text-[10px] tracking-[0.35em] uppercase text-center" style={{ color: "rgba(255,255,255,0.18)" }}>
             ◆ Hover or tilt to inspect hologram ◆
           </p>
+          {/* iOS 13+ gyroscope permission button — only appears when permission can be requested */}
+          {gyroPermission === 'prompt' && (
+            <button
+              onClick={async () => {
+                try {
+                  const perm = await (DeviceOrientationEvent as any).requestPermission();
+                  setGyroPermission(perm === 'granted' ? 'granted' : 'denied');
+                } catch { setGyroPermission('denied'); }
+              }}
+              className="font-mono text-[9px] tracking-[0.3em] uppercase px-4 py-2 rounded-lg transition-colors"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.3)" }}
+            >
+              ◈ Enable gyroscope tilt
+            </button>
+          )}
           <Link
             to="/create"
             className="inline-flex items-center space-x-2 rounded-xl px-7 py-3.5 font-black tracking-[0.18em] text-[13px] transition-all"
