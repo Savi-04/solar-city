@@ -41,6 +41,8 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN video_b64 TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN player_number INTEGER;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN platform TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN district TEXT;'); } catch (e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN public_id TEXT;'); } catch (e) {}
+try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_public_id ON jobs(public_id) WHERE public_id IS NOT NULL;'); } catch (e) {}
 
 export interface Job {
   id: string;
@@ -59,6 +61,7 @@ export interface Job {
   player_number: number | null;
   platform: string | null;
   district: string | null;
+  public_id: string | null;
   created_at: string;
 }
 
@@ -113,16 +116,19 @@ export function getJob(jobId: string): Job | undefined {
   return db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId) as Job | undefined;
 }
 
+export function setPublicId(jobId: string, publicId: string): void {
+  db.prepare('UPDATE jobs SET public_id = ? WHERE id = ?').run(publicId, jobId);
+}
+
+export function getJobByPublicId(publicId: string): Job | undefined {
+  return db.prepare('SELECT * FROM jobs WHERE public_id = ?').get(publicId) as Job | undefined;
+}
+
 export function getRegistryCount(): { issued: number; remaining: number } {
   const row = db.prepare(
     "SELECT COUNT(*) as count FROM jobs WHERE status NOT IN ('FAILED', 'CREATED')"
   ).get() as { count: number };
   return { issued: row.count, remaining: Math.max(0, 2000 - row.count) };
-}
-
-export function deleteJob(jobId: string): void {
-  db.prepare('DELETE FROM jobs WHERE id = ?').run(jobId);
-  db.prepare('DELETE FROM consent_log WHERE job_id = ?').run(jobId);
 }
 
 export function logConsent(jobId: string, age: boolean, ownership: boolean, privacy: boolean, ipHash: string) {

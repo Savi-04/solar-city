@@ -246,7 +246,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/create" element={<MainFlow />} />
-      <Route path="/card/:id" element={<InteractiveCard />} />
+      <Route path="/id/:id" element={<InteractiveCard />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="*" element={<Navigate to="/" replace />} />

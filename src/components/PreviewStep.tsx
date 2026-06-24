@@ -36,14 +36,12 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay: _on
   const localPrice = useCurrencyPrice();
 
   const gumroadProductUrl = import.meta.env.VITE_GUMROAD_PRODUCT_URL as string | undefined;
-  const cardUrl = typeof window !== "undefined" ? `${window.location.origin}/card/${jobId}` : "";
   const completeUrl = typeof window !== "undefined"
     ? `${window.location.origin}/api/gumroad/complete?job_id=${encodeURIComponent(jobId)}`
     : "";
   const gumroadHref = gumroadProductUrl
     ? `${gumroadProductUrl}?wanted=${encodeURIComponent(completeUrl)}`
     : undefined;
-  const cardNum = playerNumber ? playerNumber.toString().padStart(4, "0") : null;
   const residentId = playerNumber !== null && playerNumber !== undefined
     ? `SC-${playerNumber.toString().padStart(8, "0")}`
     : "—";

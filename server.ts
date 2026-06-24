@@ -23,8 +23,15 @@ import {
   saveJobLayers,
   logConsent,
   getRegistryCount,
-  deleteJob,
+  setPublicId,
+  getJobByPublicId,
 } from "./src/db.ts";
+
+function generatePublicId(): string {
+  const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.randomBytes(10);
+  return Array.from(bytes, (b: number) => alpha[b % 32]).join('');
+}
 
 // Edition seal computed relative to launch date (set LAUNCH_DATE env var, e.g. "2025-06-24")
 function getEditionSeal(): string {
@@ -513,11 +520,37 @@ async function startServer() {
   });
 
   
-  app.delete("/api/jobs/:id", (req: any, res: any) => {
-    const job = getJob(req.params.id);
+  // Public card endpoints — use opaque public_id so UUID is never exposed
+  app.get("/api/public/:publicId", jobLimiter, (req: any, res: any) => {
+    const job = getJobByPublicId(req.params.publicId);
     if (!job) return res.status(404).json({ error: "Not found" });
-    deleteJob(req.params.id);
-    res.json({ ok: true });
+    res.json({
+      id: job.id,
+      status: job.status,
+      name: job.name_input,
+      city: job.city_input,
+      player_number: job.player_number,
+      district: job.district,
+      layers_ready: !!job.bg_layer_b64,
+    });
+  });
+
+  app.get("/api/public/:publicId/layers", jobLimiter, (req: any, res: any) => {
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job || !job.bg_layer_b64) return res.status(404).send("Not found");
+    const base = `/api/public/${req.params.publicId}`;
+    res.json({ bg: `${base}/bg`, frame: `${base}/frame`, portrait: `${base}/portrait`, text: `${base}/text` });
+  });
+
+  (['bg', 'frame', 'portrait', 'text'] as const).forEach(layer => {
+    app.get(`/api/public/:publicId/${layer}`, jobLimiter, (req: any, res: any) => {
+      const job = getJobByPublicId(req.params.publicId);
+      if (!job || !job[`${layer}_layer_b64`]) return res.status(404).send("Not found");
+      const buffer = Buffer.from(job[`${layer}_layer_b64`] as string, "base64");
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+      res.end(buffer);
+    });
   });
 
   // Gumroad post-payment redirect — called via the ?wanted= URL parameter on the overlay link.
@@ -535,7 +568,9 @@ async function startServer() {
     }
 
     updateJobStatus(jobId, "DONE");
-    res.redirect(`/card/${jobId}`);
+    const publicId = generatePublicId();
+    setPublicId(jobId, publicId);
+    res.redirect(`/id/${publicId}`);
   });
 
   // Gumroad account-level ping (fires for every sale) — used as belt-and-suspenders.
