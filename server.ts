@@ -60,6 +60,7 @@ const upload = multer({
 
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1);
 
   // fal.ai proxy — must be before express.json() so raw body is not pre-consumed
   app.use("/api/fal/proxy", express.raw({ type: "*/*", limit: "50mb" }), async (req: any, res: any) => {
