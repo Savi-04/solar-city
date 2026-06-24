@@ -661,16 +661,28 @@ async function startServer() {
       }
 
       try {
+        // Read job_id + tok from direct url_params (new approach — Gumroad strips ?wanted= but preserves other params).
+        // Fall back to parsing url_params.wanted for any older purchases.
+        const directJobId = req.body.url_params?.job_id as string | undefined;
+        const directTok = req.body.url_params?.tok as string | undefined;
         const wantedUrl = req.body.url_params?.wanted as string | undefined;
-        if (wantedUrl) {
+
+        let jobId: string | null = null;
+        let token: string | null = null;
+
+        if (directJobId && directTok) {
+          jobId = directJobId;
+          token = directTok;
+        } else if (wantedUrl) {
           const parsed = new URL(wantedUrl);
-          const jobId = parsed.searchParams.get("job_id");
-          const token = parsed.searchParams.get("token");
-          const buyerEmail = req.body.email as string | undefined;
+          jobId = parsed.searchParams.get("job_id");
+          token = parsed.searchParams.get("token");
+        }
 
-          console.log(`Gumroad webhook: job=${jobId} buyer=${buyerEmail}`);
+        const buyerEmail = req.body.email as string | undefined;
+        console.log(`Gumroad webhook: job=${jobId} buyer=${buyerEmail} (source: ${directJobId ? "url_params.job_id" : wantedUrl ? "wanted" : "none"})`);
 
-          if (jobId && token) {
+        if (jobId && token) {
             const job = getJob(jobId);
             if (job && job.status === "PREVIEW_READY" && job.complete_token === token) {
               updateJobStatus(jobId, "DONE");
@@ -692,9 +704,8 @@ async function startServer() {
             } else {
               console.warn(`Webhook: job ${jobId} in unexpected state: ${job?.status ?? "not found"}`);
             }
-          }
         } else {
-          console.warn("Gumroad webhook: no url_params.wanted in body");
+          console.warn("Gumroad webhook: no job_id/tok in url_params and no wanted URL — sale not matched to a job");
         }
       } catch (err) {
         console.error("Webhook processing error:", err);
@@ -757,14 +768,19 @@ async function startServer() {
       const rescued: any[] = [];
       const skipped: any[] = [];
       for (const sale of (data.sales as any[])) {
-        const wantedUrl = sale.url_params?.wanted as string | undefined;
         const saleInfo = { email: sale.email, created_at: sale.created_at, sale_id: sale.id };
-        if (!wantedUrl) { skipped.push({ ...saleInfo, reason: "no url_params.wanted" }); continue; }
+        const directJobId = sale.url_params?.job_id as string | undefined;
+        const directTok = sale.url_params?.tok as string | undefined;
+        const wantedUrl = sale.url_params?.wanted as string | undefined;
+        let jobId: string | null = null;
+        let tok: string | null = null;
+        if (directJobId && directTok) {
+          jobId = directJobId; tok = directTok;
+        } else if (wantedUrl) {
+          try { const p = new URL(wantedUrl); jobId = p.searchParams.get("job_id"); tok = p.searchParams.get("token"); } catch { /* skip */ }
+        }
         try {
-          const parsed = new URL(wantedUrl);
-          const jobId = parsed.searchParams.get("job_id");
-          const tok = parsed.searchParams.get("token");
-          if (!jobId || !tok) { skipped.push({ ...saleInfo, reason: "no job_id/token in wanted url" }); continue; }
+          if (!jobId || !tok) { skipped.push({ ...saleInfo, reason: "no url_params.job_id/tok or wanted" }); continue; }
           const job = getJob(jobId);
           if (!job) { skipped.push({ ...saleInfo, job_id: jobId, reason: "job not found in DB" }); continue; }
           if (job.status === "DONE") { skipped.push({ ...saleInfo, job_id: jobId, reason: "already DONE", public_id: job.public_id }); continue; }
@@ -1112,12 +1128,19 @@ async function syncGumroadSales() {
     const data = await r.json() as any;
     if (!data.success || !Array.isArray(data.sales)) return;
     for (const sale of data.sales) {
-      const wantedUrl = sale.url_params?.wanted as string | undefined;
-      if (!wantedUrl) continue;
       try {
-        const parsed = new URL(wantedUrl);
-        const jobId = parsed.searchParams.get("job_id");
-        const tok = parsed.searchParams.get("token");
+        const directJobId = sale.url_params?.job_id as string | undefined;
+        const directTok = sale.url_params?.tok as string | undefined;
+        const wantedUrl = sale.url_params?.wanted as string | undefined;
+        let jobId: string | null = null;
+        let tok: string | null = null;
+        if (directJobId && directTok) {
+          jobId = directJobId; tok = directTok;
+        } else if (wantedUrl) {
+          const p = new URL(wantedUrl);
+          jobId = p.searchParams.get("job_id");
+          tok = p.searchParams.get("token");
+        }
         if (!jobId || !tok) continue;
         const job = getJob(jobId);
         if (job && job.status === "PREVIEW_READY" && job.complete_token === tok) {

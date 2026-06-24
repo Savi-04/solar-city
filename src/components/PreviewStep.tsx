@@ -41,7 +41,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
     ? `${window.location.origin}/api/gumroad/complete?job_id=${encodeURIComponent(jobId)}${completeToken ? `&token=${encodeURIComponent(completeToken)}` : ""}`
     : "";
   const gumroadHref = gumroadProductUrl
-    ? `${gumroadProductUrl}?wanted=${encodeURIComponent(completeUrl)}`
+    ? `${gumroadProductUrl}?wanted=${encodeURIComponent(completeUrl)}&job_id=${encodeURIComponent(jobId)}${completeToken ? `&tok=${encodeURIComponent(completeToken)}` : ""}`
     : undefined;
   const residentId = playerNumber !== null && playerNumber !== undefined
     ? `SC-${playerNumber.toString().padStart(8, "0")}`
