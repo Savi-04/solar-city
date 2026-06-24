@@ -44,6 +44,7 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN district TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN public_id TEXT;'); } catch (e) {}
 try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_public_id ON jobs(public_id) WHERE public_id IS NOT NULL;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN complete_token TEXT;'); } catch (e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN buyer_email TEXT;'); } catch (e) {}
 
 export interface Job {
   id: string;
@@ -64,6 +65,7 @@ export interface Job {
   district: string | null;
   public_id: string | null;
   complete_token: string | null;
+  buyer_email: string | null;
   created_at: string;
 }
 
@@ -124,6 +126,10 @@ export function setPublicId(jobId: string, publicId: string): void {
 
 export function getJobByPublicId(publicId: string): Job | undefined {
   return db.prepare('SELECT * FROM jobs WHERE public_id = ?').get(publicId) as Job | undefined;
+}
+
+export function setBuyerEmail(jobId: string, email: string | null): void {
+  db.prepare('UPDATE jobs SET buyer_email = ? WHERE id = ?').run(email, jobId);
 }
 
 export function getRegistryCount(): { issued: number; remaining: number } {

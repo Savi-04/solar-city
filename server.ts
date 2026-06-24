@@ -11,6 +11,7 @@ import sharp from "sharp";
 import crypto from "crypto";
 import { Readable } from "stream";
 import { readFileSync } from "fs";
+import nodemailer from "nodemailer";
 
 fal.config({ credentials: process.env.FAL_KEY });
 import {
@@ -26,7 +27,26 @@ import {
   setPublicId,
   getJobByPublicId,
   getLeaderboard,
+  setBuyerEmail,
 } from "./src/db.ts";
+
+function sendCardEmail(to: string, cardUrl: string): Promise<void> {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn("SMTP not configured — skipping card email to", to);
+    return Promise.resolve();
+  }
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+  return transporter.sendMail({
+    from: `"Solara City Bureau of Residents" <${process.env.SMTP_USER}>`,
+    to,
+    subject: "Your Solara City Resident ID is ready",
+    text: `Your holographic ID card is ready.\n\nView it here: ${cardUrl}\n\nBookmark this link — it's permanent and unique to you.\n\n— Solara City Bureau of Residents`,
+    html: `<div style="background:#05050d;color:#e8e0f5;font-family:monospace;padding:32px;max-width:480px;margin:auto;border-radius:12px"><h2 style="color:#ff6b1a;margin-top:0">Solara City Bureau of Residents</h2><p>Your holographic Resident ID is ready.</p><p style="margin:24px 0"><a href="${cardUrl}" style="background:#ff2060;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">VIEW MY CARD →</a></p><p style="font-size:12px;color:#888">Or copy this link: ${cardUrl}</p><p style="font-size:12px;color:#888">Bookmark it — this link is permanent and unique to you.</p></div>`,
+  }).then(() => { console.log("Card email sent to", to); });
+}
 
 function generatePublicId(): string {
   const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -630,18 +650,79 @@ async function startServer() {
     res.redirect(`/id/${publicId}`);
   });
 
-  // Gumroad account-level ping (fires for every sale) — used as belt-and-suspenders.
-  // Without custom fields we can't identify the specific job here, so just acknowledge.
+  // Gumroad server-to-server ping — primary completion path (more reliable than browser redirect).
+  // Gumroad POSTs url_params[wanted] containing our complete URL with job_id + token.
   app.post("/api/gumroad/webhook",
     express.urlencoded({ extended: true }),
-    (req: any, res: any) => {
+    async (req: any, res: any) => {
       const sellerId = req.body.seller_id as string | undefined;
       if (process.env.GUMROAD_SELLER_ID && sellerId !== process.env.GUMROAD_SELLER_ID) {
         return res.status(403).json({ error: "Invalid seller" });
       }
+
+      try {
+        const wantedUrl = req.body.url_params?.wanted as string | undefined;
+        if (wantedUrl) {
+          const parsed = new URL(wantedUrl);
+          const jobId = parsed.searchParams.get("job_id");
+          const token = parsed.searchParams.get("token");
+          const buyerEmail = req.body.email as string | undefined;
+
+          console.log(`Gumroad webhook: job=${jobId} buyer=${buyerEmail}`);
+
+          if (jobId && token) {
+            const job = getJob(jobId);
+            if (job && job.status === "PREVIEW_READY" && job.complete_token === token) {
+              updateJobStatus(jobId, "DONE");
+              const publicId = generatePublicId();
+              setPublicId(jobId, publicId);
+              if (buyerEmail) {
+                setBuyerEmail(jobId, buyerEmail);
+                const cardUrl = `${process.env.PUBLIC_URL || "https://solar-city.up.railway.app"}/id/${publicId}`;
+                sendCardEmail(buyerEmail, cardUrl).catch(console.error);
+              }
+              console.log(`Job ${jobId} completed via webhook → /id/${publicId}`);
+            } else if (job?.status === "DONE") {
+              // Browser redirect already completed it — send email if we haven't yet
+              if (job.public_id && buyerEmail && !job.buyer_email) {
+                setBuyerEmail(jobId, buyerEmail);
+                const cardUrl = `${process.env.PUBLIC_URL || "https://solar-city.up.railway.app"}/id/${job.public_id}`;
+                sendCardEmail(buyerEmail, cardUrl).catch(console.error);
+              }
+            } else {
+              console.warn(`Webhook: job ${jobId} in unexpected state: ${job?.status ?? "not found"}`);
+            }
+          }
+        } else {
+          console.warn("Gumroad webhook: no url_params.wanted in body");
+        }
+      } catch (err) {
+        console.error("Webhook processing error:", err);
+      }
+
       res.json({ ok: true });
     }
   );
+
+  // Admin rescue — mark a stuck PREVIEW_READY job as DONE (for jobs where redirect + webhook both failed)
+  app.post("/api/admin/rescue-job", express.json(), (req: any, res: any) => {
+    const secret = req.headers["x-admin-secret"] as string | undefined;
+    if (!secret || secret !== process.env.ADMIN_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const jobId = req.body.job_id as string | undefined;
+    if (!jobId) return res.status(400).json({ error: "job_id required" });
+    const job = getJob(jobId);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    if (job.status === "DONE") {
+      return res.json({ ok: true, public_id: job.public_id, already_done: true, card_url: `/id/${job.public_id}` });
+    }
+    updateJobStatus(jobId, "DONE");
+    const publicId = generatePublicId();
+    setPublicId(jobId, publicId);
+    console.log(`Admin rescue: job ${jobId} → /id/${publicId}`);
+    return res.json({ ok: true, public_id: publicId, card_url: `/id/${publicId}` });
+  });
 
   // Dev-only checkout stub — disabled when GUMROAD_SELLER_ID is set (production)
   app.post("/api/checkout", async (req, res) => {

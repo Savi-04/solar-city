@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 
-// Gumroad product is priced in EUR — use this as base so our displayed price
+// Gumroad product is priced in USD — use this as base so our displayed price
 // matches what Gumroad actually charges at checkout.
-const EUR_AMOUNT = 19.99;
-const EUR_DISPLAY = "€19.99";
+const USD_AMOUNT = 19.99;
+const USD_DISPLAY = "$19.99";
 let cache: string | null = null;
 
 function detectCurrency(): string {
@@ -21,24 +21,24 @@ function detectCurrency(): string {
     if (tz === "Asia/Dubai" || tz === "Asia/Muscat") return "AED";
     if (tz.startsWith("Europe/")) return "EUR";
   } catch { /* */ }
-  return "EUR";
+  return "USD";
 }
 
 export function useCurrencyPrice(): string {
-  const [price, setPrice] = useState(cache ?? EUR_DISPLAY);
+  const [price, setPrice] = useState(cache ?? USD_DISPLAY);
 
   useEffect(() => {
     if (cache) { setPrice(cache); return; }
 
     const currency = detectCurrency();
-    if (currency === "EUR") { cache = EUR_DISPLAY; setPrice(EUR_DISPLAY); return; }
+    if (currency === "USD") { cache = USD_DISPLAY; setPrice(USD_DISPLAY); return; }
 
-    fetch("https://open.er-api.com/v6/latest/EUR")
+    fetch("https://open.er-api.com/v6/latest/USD")
       .then((r) => r.json())
       .then((data) => {
         const rate = data?.rates?.[currency];
         if (!rate) throw new Error("no rate");
-        const converted = Math.round(EUR_AMOUNT * rate);
+        const converted = Math.round(USD_AMOUNT * rate);
         const formatted = "≈" + new Intl.NumberFormat(navigator.language, {
           style: "currency",
           currency,
@@ -47,7 +47,7 @@ export function useCurrencyPrice(): string {
         cache = formatted;
         setPrice(formatted);
       })
-      .catch(() => { cache = EUR_DISPLAY; setPrice(EUR_DISPLAY); });
+      .catch(() => { cache = USD_DISPLAY; setPrice(USD_DISPLAY); });
   }, []);
 
   return price;
