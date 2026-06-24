@@ -110,7 +110,7 @@ async function startServer() {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "blob:"],
+        imgSrc: ["'self'", "data:", "blob:", "https://api.dicebear.com"],
         connectSrc: ["'self'", "https://open.er-api.com", "https://*.fal.run", "https://*.fal.ai", "https://fal.media", "https://*.fal.media"],
         frameSrc: ["'none'"],
       }
