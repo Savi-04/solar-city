@@ -527,95 +527,68 @@ async function startServer() {
 
     console.log(`[video] Starting Seedance generation for ${jobId}`);
 
-    // ── Build 1080×1920 starting frame ──────────────────────────────────────
-    const BASE_W = 1080, BASE_H = 1920;
-
-    // Guaranteed-size canvas via Sharp create — no SVG rendering, no DPI surprises
-    const bgBuffer = await sharp({
-      create: { width: BASE_W, height: BASE_H, channels: 4, background: { r: 3, g: 3, b: 11, alpha: 255 } },
-    }).png().toBuffer();
-
-    // Step 1: flat portrait face — extract the face region from the portrait layer
+    // ── @Image1: portrait face (face region extracted from stylized portrait layer) ──
     const portraitLayerBuf = Buffer.from(job.portrait_layer_b64, "base64");
     const { width: pW = 800, height: pH = 1066 } = await sharp(portraitLayerBuf).metadata();
-    console.log(`[video] portrait layer: ${pW}×${pH}`);
-
-    // Safe extract bounds — fall back to full layer resize if layer is smaller than expected
     const canExtract = pW >= 660 && pH >= 700;
     const portraitFaceBuffer = canExtract
       ? await sharp(portraitLayerBuf)
           .extract({ left: 140, top: 100, width: 520, height: 600 })
           .resize(560, 646, { fit: "fill" })
-          .png()
+          .jpeg({ quality: 95 })
           .toBuffer()
       : await sharp(portraitLayerBuf)
           .resize(560, 646, { fit: "cover" })
-          .png()
+          .jpeg({ quality: 95 })
           .toBuffer();
 
-    // Step 2a: composite the 4 card layers — identical to og-card (known working)
+    // ── @Image2: full card composite (800×1066, same as og-card) ──────────────
     const fullCardBuf = await sharp(Buffer.from(job.bg_layer_b64, "base64"))
       .composite([
         { input: Buffer.from(job.portrait_layer_b64, "base64") },
         { input: Buffer.from(job.frame_layer_b64, "base64") },
         { input: Buffer.from(job.text_layer_b64, "base64") },
       ])
-      .png()
-      .toBuffer();
-    const { width: fullW = 800, height: fullH = 1066 } = await sharp(fullCardBuf).metadata();
-    console.log(`[video] full card composite: ${fullW}×${fullH}`);
-
-    // Step 2b: scale and rotate in a separate Sharp call (not chained after composite)
-    const cardComposite = await sharp(fullCardBuf)
-      .resize(360, 480)
-      .rotate(-6, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .png()
-      .toBuffer();
-
-    const { width: cardW = 408, height: cardH = 515 } = await sharp(cardComposite).metadata();
-    const portraitLeft = Math.round((BASE_W - 560) / 2); // 260
-    const portraitTop = 55;
-    const cardLeft = Math.max(0, Math.round((BASE_W - cardW) / 2));
-    const cardTop = 760;
-
-    console.log(`[video] frame dims — bg:${BASE_W}×${BASE_H} portrait:560×646@${portraitLeft},${portraitTop} card:${cardW}×${cardH}@${cardLeft},${cardTop}`);
-
-    const startingFrame = await sharp(bgBuffer)
-      .composite([
-        { input: portraitFaceBuffer, top: portraitTop, left: portraitLeft },
-        { input: cardComposite, top: cardTop, left: cardLeft },
-      ])
       .jpeg({ quality: 95 })
       .toBuffer();
 
-    // ── Upload starting frame to fal.ai storage (proper URL, not giant base64) ──
-    console.log(`[video] Uploading starting frame for ${jobId}...`);
-    const imageBlob = new Blob([startingFrame], { type: "image/jpeg" });
-    const uploadedImageUrl = await fal.storage.upload(imageBlob);
-    console.log(`[video] Frame uploaded → ${uploadedImageUrl}`);
+    // Upload both images in parallel
+    console.log(`[video] Uploading portrait + card for ${jobId}...`);
+    const [portraitUrl, cardUrl] = await Promise.all([
+      fal.storage.upload(new Blob([portraitFaceBuffer], { type: "image/jpeg" })),
+      fal.storage.upload(new Blob([fullCardBuf], { type: "image/jpeg" })),
+    ]);
+    console.log(`[video] portrait → ${portraitUrl}`);
+    console.log(`[video] card → ${cardUrl}`);
 
-    // ── Call fal.ai Seedance 2.0 ─────────────────────────────────────────────
-    const PROMPT = [
-      "Cinematic cyberpunk game intro, 9:16 vertical.",
-      "The character's face is completely frozen and unchanged — no morphing, no alteration.",
-      "Dark neon city atmosphere pulses around them.",
-      "Wind and glowing light particles stream continuously from left to right across the frame.",
-      "A holographic ID card hanging from a thin black lanyard around their neck sways with",
-      "gentle pendulum physics — subtle ±5 degree swing.",
-      "The card surface shimmers with iridescent holographic rainbow light as it moves.",
-      "Teal, amber and magenta neon glow breathes from the background cityscape.",
-      "Scene fades in from complete darkness at the very start.",
-      "Static camera — no movement, no zoom, no pan, no shake.",
-      "Epic game cinematic quality, 4K detail.",
-    ].join(" ");
+    // ── Call fal.ai Seedance 2.0 fast reference-to-video ─────────────────────
+    const PROMPT = `@Image1 is motionless, eyes closed, in total darkness.
 
-    const result = await fal.subscribe("bytedance/seedance-2.0/fast/image-to-video", {
+A thin neon scan line traces across the character's face from left to right. \
+Their eyes open — looking directly into the camera. One frame of subtle RGB \
+split on the iris as they come online.
+
+Cut immediately to @Image2 floating in the center of frame, rotating slowly \
+in a void, casting pink and teal light onto the surrounding dark. Each stat \
+line on the card blinks in from the left, one by one, green text, sharp edges.
+
+Final shot: both @Image1 and @Image2 visible — character slightly behind and \
+over the card's shoulder, both facing camera. Rain begins to fall through \
+the frame from above, drops catching the card's glow.
+
+Camera: tight head shot on the eye-open, rack focus to the card on the cut, \
+wide enough to hold both on the final frame. Grade: cold blue base, neon \
+accent colours, high contrast.`;
+
+    const result = await fal.subscribe("bytedance/seedance-2.0/fast/reference-to-video", {
       input: {
-        image_url: uploadedImageUrl,
         prompt: PROMPT,
-        duration: 5,
+        image_urls: [portraitUrl, cardUrl],
         resolution: "720p",
+        duration: "8",
         aspect_ratio: "9:16",
+        generate_audio: false,
+        bitrate_mode: "high",
       },
       logs: true,
       onQueueUpdate: (update: any) => {
@@ -623,15 +596,7 @@ async function startServer() {
       },
     }) as any;
 
-    // Log response keys to diagnose format issues
-    console.log(`[video] Seedance response keys: ${Object.keys(result?.data || {}).join(", ")}`);
-
-    // Handle multiple possible response formats across fal.ai models
-    const videoUrl: string | undefined =
-      result?.data?.video?.url ??
-      result?.data?.video_url ??
-      result?.data?.output?.video?.url ??
-      result?.data?.videos?.[0]?.url;
+    const videoUrl: string | undefined = result?.data?.video?.url;
 
     if (!videoUrl) {
       console.error("[video] Full Seedance response:", JSON.stringify(result?.data).slice(0, 500));
