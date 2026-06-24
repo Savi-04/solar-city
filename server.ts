@@ -1027,7 +1027,7 @@ Style: Cinematic game trailer quality. Rich saturated color grade — warm amber
     const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
     const videoPath = path.join(videosDir, `${req.params.publicId}.mp4`);
 
-    const VIDEO_MAX_ATTEMPTS = 3;
+    const VIDEO_MAX_ATTEMPTS = 5;
     const attempts = job.video_attempts ?? 0;
 
     // Attempt cap — prevents repeated billing on failure/abuse
@@ -1035,21 +1035,12 @@ Style: Cinematic game trailer quality. Rich saturated color grade — warm amber
       return res.status(429).json({ status: "limit_reached", message: "Video generation limit reached. Contact support." });
     }
 
-    // ERROR state — auto-retry if attempts remain, else surface the error
+    // ERROR state — surface to client (frontend handles clear + re-trigger on user action)
     if (job.video_b64 === "ERROR") {
       if (attempts >= VIDEO_MAX_ATTEMPTS) {
         return res.status(429).json({ status: "limit_reached", message: "Video generation limit reached. Contact support." });
       }
-      // Clear error and re-trigger automatically — user just keeps polling
-      saveVideoOnly(job.id, null as any);
-      if (job.status === "DONE" && job.bg_layer_b64 && !videoGenInProgress.has(job.id)) {
-        incrementVideoAttempts(job.id);
-        videoGenInProgress.add(job.id);
-        generateCardVideo(job.id)
-          .catch(e => console.error("[video] On-demand generation failed:", e))
-          .finally(() => videoGenInProgress.delete(job.id));
-      }
-      return res.status(202).json({ status: "generating", error: job.video_error });
+      return res.status(500).json({ status: "error", error: job.video_error ?? "Video generation failed" });
     }
 
     try {

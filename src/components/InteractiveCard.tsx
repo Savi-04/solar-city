@@ -160,12 +160,40 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     const publicId = id || jobId;
     const endpoint = `/api/public/${publicId}/video.mp4`;
 
+    // Per-click flag: we allow ONE transparent error-clear + re-trigger per button press.
+    // The polling loop itself never re-triggers on error — that would burn attempts silently.
+    let clearedOnce = false;
+
     const tryDownload = async (): Promise<boolean> => {
       const res = await fetch(endpoint);
-      if (res.status === 202) return false; // still generating (server auto-retries on error too)
-      if (res.status === 429) { setVideoState('limit'); return true; } // attempt cap hit
-      if (!res.ok) { setVideoState('error'); return true; } // unexpected — stop polling
+      if (res.status === 202) return false; // still generating, keep polling
+      if (res.status === 429) { setVideoState('limit'); return true; }
+      if (res.status === 500) {
+        if (!clearedOnce) {
+          // First 500 this session: clear the error server-side and immediately re-trigger
+          clearedOnce = true;
+          await fetch(`/api/public/${publicId}/video-reset`, { method: 'POST' }).catch(() => {});
+          // Fetch again right now — server will start a fresh generation
+          const retry = await fetch(endpoint);
+          if (retry.status === 429) { setVideoState('limit'); return true; }
+          if (retry.status === 202) return false; // now generating, start polling
+          if (retry.ok) {
+            const blob = await retry.blob();
+            triggerDownload(blob);
+            return true;
+          }
+        }
+        // Second 500 in same session — surface to user, stop polling
+        setVideoState('error');
+        return true;
+      }
+      if (!res.ok) { setVideoState('error'); return true; }
       const blob = await res.blob();
+      triggerDownload(blob);
+      return true;
+    };
+
+    const triggerDownload = (blob: Blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -175,7 +203,6 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 15000);
       setVideoState('idle');
-      return true;
     };
 
     const done = await tryDownload();
