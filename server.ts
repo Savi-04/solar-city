@@ -702,6 +702,7 @@ async function startServer() {
     const videoBuf = Buffer.from(await videoRes.arrayBuffer());
     await fsPromises.writeFile(videoPath, videoBuf);
     console.log(`[video] Saved ${videoBuf.length} bytes → ${videoPath}`);
+    saveVideoOnly(jobId, "DONE");
     } catch (err: any) {
       console.error(`[video] generateCardVideo FAILED for ${jobId}:`, err?.message || err);
       // Store error marker so the client stops polling and shows error state
@@ -948,7 +949,8 @@ async function startServer() {
     const jobs = db.prepare(`
       SELECT id, status, name_input, city_input, district, player_number, public_id, buyer_email,
              substr(created_at, 1, 16) as created_at,
-             CASE WHEN complete_token IS NOT NULL THEN 1 ELSE 0 END as has_token
+             CASE WHEN complete_token IS NOT NULL THEN 1 ELSE 0 END as has_token,
+             video_b64
       FROM jobs WHERE id != 'demo-card-v7' ORDER BY created_at DESC LIMIT 100
     `).all();
     return res.json(jobs);

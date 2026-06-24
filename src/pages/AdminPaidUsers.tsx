@@ -11,6 +11,7 @@ interface JobRow {
   buyer_email: string | null;
   created_at: string;
   has_token: number;
+  video_b64: string | null;
 }
 
 interface SyncResult {
@@ -100,7 +101,7 @@ export default function AdminPaidUsers() {
 
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#05050d" }}>
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#08091a" }}>
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <p className="font-mono text-[9px] tracking-[0.4em] text-white/25 uppercase mb-2">Solara City</p>
@@ -155,7 +156,7 @@ export default function AdminPaidUsers() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-8" style={{ background: "#05050d" }}>
+    <div className="min-h-screen px-4 py-8" style={{ background: "#08091a" }}>
       <div className="max-w-5xl mx-auto">
 
         {/* Header */}
@@ -267,7 +268,7 @@ export default function AdminPaidUsers() {
             <table className="w-full font-mono text-[11px]">
               <thead>
                 <tr style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  {["#", "Name", "City", "Status", "Email", "Card", "Date"].map(h => (
+                  {["#", "Name", "City", "Status", "Email", "Card", "Video", "Date"].map(h => (
                     <th key={h} className="px-4 py-3 text-left tracking-widest uppercase" style={{ color: "rgba(255,255,255,0.25)", fontSize: "9px" }}>
                       {h}
                     </th>
@@ -318,6 +319,28 @@ export default function AdminPaidUsers() {
                         >
                           View →
                         </a>
+                      ) : (
+                        <span style={{ color: "rgba(255,255,255,0.15)" }}>—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {job.video_b64 === "DONE" && job.public_id ? (
+                        <a
+                          href={`/api/public/${job.public_id}/video.mp4`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                          style={{ color: "#00ff7f" }}
+                        >
+                          ⬇ MP4
+                        </a>
+                      ) : job.video_b64 === "ERROR" ? (
+                        <span
+                          className="px-2 py-0.5 rounded text-[9px] tracking-widest uppercase font-bold"
+                          style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1px solid rgba(255,68,68,0.3)" }}
+                        >
+                          FAILED
+                        </span>
                       ) : (
                         <span style={{ color: "rgba(255,255,255,0.15)" }}>—</span>
                       )}
