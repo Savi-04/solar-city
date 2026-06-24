@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 
 export default function InteractiveCard({ jobId, standalone = true, autoAnimate = false }: { jobId?: string, standalone?: boolean, autoAnimate?: boolean }) {
   const { id } = useParams<{ id: string }>();
   const activeId = jobId || id;
+  const navigate = useNavigate();
   const [layers, setLayers] = useState<{ bg: string, frame: string, portrait: string, text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paymentPending, setPaymentPending] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   const cardRef = useRef<HTMLDivElement>(null);
   
@@ -93,7 +96,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
         while (!cancelled) {
           try {
             const res = await fetch(`/api/jobs/${activeId}`);
-            if (!res.ok) { setError("Card not found"); return; }
+            if (!res.ok) { navigate("/"); return; }
             const data = await res.json();
             if (data.status === "DONE") { setPaymentPending(false); break; }
             setPaymentPending(true);
@@ -106,10 +109,13 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       // Fetch layers
       try {
         const res = await fetch(`/api/jobs/${activeId}/layers`);
-        if (!res.ok) throw new Error("Layers not ready yet or job not found");
+        if (!res.ok) throw new Error("layers_not_found");
         if (!cancelled) setLayers(await res.json());
-      } catch (err: any) {
-        if (!cancelled) setError(err.message);
+      } catch {
+        if (!cancelled) {
+          if (standalone) navigate("/");
+          else setError("layers_not_found");
+        }
       }
     };
 
@@ -158,9 +164,20 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   };
   
   const handleMouseLeave = () => {
-    // Reset to center
     mouseX.set(0.5);
     mouseY.set(0.5);
+  };
+
+  const handleDelete = async () => {
+    if (!activeId) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/jobs/${activeId}`, { method: "DELETE" });
+      navigate("/");
+    } catch {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   if (error) {
@@ -330,6 +347,46 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
           </Link>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="font-mono text-[9px] tracking-widest uppercase transition-colors"
+            style={{ color: "rgba(255,60,60,0.25)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,60,60,0.55)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,60,60,0.25)")}
+          >
+            Delete my card
+          </button>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)" }}>
+          <div className="max-w-xs w-full rounded-2xl p-6 flex flex-col items-center space-y-5"
+            style={{ background: "#0d0b16", border: "1px solid rgba(255,60,60,0.25)", boxShadow: "0 0 40px rgba(255,0,0,0.1)" }}>
+            <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-center" style={{ color: "rgba(255,80,80,0.7)" }}>
+              Delete Card
+            </p>
+            <p className="font-mono text-[11px] text-white/45 text-center leading-relaxed">
+              Permanently delete this card and its shareable link? This cannot be undone.
+            </p>
+            <div className="flex space-x-3 w-full">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 rounded-xl py-3 font-mono text-[11px] tracking-wider transition-colors"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 rounded-xl py-3 font-mono text-[11px] tracking-wider transition-colors disabled:opacity-40"
+                style={{ background: "rgba(255,40,40,0.1)", border: "1px solid rgba(255,40,40,0.3)", color: "rgba(255,80,80,0.9)" }}
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

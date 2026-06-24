@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Routes, Route, useNavigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, Link } from "react-router-dom";
 import { motion } from "motion/react";
 import UploadStep from "./components/UploadStep";
 import PreviewStep from "./components/PreviewStep";
@@ -249,6 +249,7 @@ export default function App() {
       <Route path="/card/:id" element={<InteractiveCard />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

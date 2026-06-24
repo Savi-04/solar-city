@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Loader2, Zap, Star, Shield, Link as LinkIcon } from "lucide-react";
 import { motion } from "motion/react";
 import InteractiveCard from "./InteractiveCard";
+import { useCurrencyPrice } from "../hooks/useCurrencyPrice";
 
 interface PreviewStepProps {
   jobId: string;
@@ -32,6 +33,7 @@ const FEATURES = [
 
 export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay: _onPay, isProcessingPayment, playerNumber }: PreviewStepProps) {
   const [district, setDistrict] = useState<string | null>(null);
+  const localPrice = useCurrencyPrice();
 
   const gumroadProductUrl = import.meta.env.VITE_GUMROAD_PRODUCT_URL as string | undefined;
   const cardUrl = typeof window !== "undefined" ? `${window.location.origin}/card/${jobId}` : "";
@@ -179,7 +181,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay: _on
                   className="font-black tracking-[0.18em] text-[15px]"
                   style={{ color: "#ff2060", textShadow: "0 0 12px rgba(255,32,96,0.45)" }}
                 >
-                  GET MY CARD · $19.99 →
+                  GET MY CARD · {localPrice} →
                 </span>
                 <span className="font-mono text-[10px] text-white/28 tracking-widest mt-1">One-time · Shareable link · Yours to keep</span>
               </span>

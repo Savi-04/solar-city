@@ -117,7 +117,12 @@ export function getRegistryCount(): { issued: number; remaining: number } {
   const row = db.prepare(
     "SELECT COUNT(*) as count FROM jobs WHERE status NOT IN ('FAILED', 'CREATED')"
   ).get() as { count: number };
-  return { issued: row.count, remaining: Math.max(0, 10000 - row.count) };
+  return { issued: row.count, remaining: Math.max(0, 2000 - row.count) };
+}
+
+export function deleteJob(jobId: string): void {
+  db.prepare('DELETE FROM jobs WHERE id = ?').run(jobId);
+  db.prepare('DELETE FROM consent_log WHERE job_id = ?').run(jobId);
 }
 
 export function logConsent(jobId: string, age: boolean, ownership: boolean, privacy: boolean, ipHash: string) {

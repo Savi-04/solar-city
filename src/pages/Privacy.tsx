@@ -75,7 +75,8 @@ export default function Privacy() {
             <p className="mb-3">The following services process data on our behalf:</p>
             <div className="space-y-2">
               {[
-                ["Google Gemini API", "AI image stylisation — your photo is sent to Google's API for processing, then discarded. Google processes this under their API terms.", "ai.google.dev"],
+                ["Google Gemini API", "Content moderation — your photo is sent to Google's API to check it contains a valid human face, then discarded. Google processes this under their API terms.", "ai.google.dev"],
+                ["fal.ai (Fal Inc.)", "AI image stylisation — your portrait is processed via fal.ai's inference API to apply the neon-city art style. Images are discarded after processing per their data policy.", "fal.ai/privacy"],
                 ["Cloudflare", "CDN and bot protection. Cloudflare may process your IP to deliver the service.", "cloudflare.com/privacypolicy"],
               ].map(([name, desc, url]) => (
                 <div key={name} className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Zap, ArrowRight, Upload, Cpu, Download, ExternalLink } from "lucide-react";
 import InteractiveCard from "../components/InteractiveCard";
+import { useCurrencyPrice } from "../hooks/useCurrencyPrice";
 
 /* ── Floating particles (shared with MainFlow) ── */
 function ParticleField() {
@@ -40,36 +41,48 @@ function ParticleField() {
 }
 
 /* ── Live registry counter ── */
-function RegistryCounter() {
-  const [count, setCount] = useState<number | null>(null);
+function RegistryCounter({ onSoldOut }: { onSoldOut?: (v: boolean) => void }) {
+  const [data, setData] = useState<{ issued: number; remaining: number } | null>(null);
 
   useEffect(() => {
     fetch("/api/registry/count")
       .then((r) => r.json())
-      .then((d) => setCount(d.issued))
+      .then((d) => {
+        setData(d);
+        if (d.remaining <= 0) onSoldOut?.(true);
+      })
       .catch(() => {});
-  }, []);
+  }, [onSoldOut]);
 
   return (
     <AnimatePresence mode="wait">
-      {count !== null && (
+      {data !== null && (
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           className="inline-flex items-center space-x-2 rounded-full px-4 py-1.5"
           style={{
-            background: "rgba(255,32,96,0.06)",
-            border: "1px solid rgba(255,32,96,0.18)",
+            background: data.remaining <= 0 ? "rgba(255,80,80,0.08)" : "rgba(255,32,96,0.06)",
+            border: `1px solid ${data.remaining <= 0 ? "rgba(255,80,80,0.3)" : "rgba(255,32,96,0.18)"}`,
             boxShadow: "0 0 14px rgba(255,32,96,0.07)",
           }}
         >
           <div
-            className="w-1.5 h-1.5 rounded-full bg-[#ff2060]"
-            style={{ animation: "pulse-pink 1.5s ease-in-out infinite" }}
+            className="w-1.5 h-1.5 rounded-full"
+            style={{
+              background: data.remaining <= 0 ? "#ff4444" : "#ff2060",
+              animation: "pulse-pink 1.5s ease-in-out infinite",
+            }}
           />
-          <span className="font-mono text-[10px] tracking-widest" style={{ color: "rgba(255,130,150,0.9)" }}>
-            🔥 <strong className="text-white/75">{count.toLocaleString()}</strong> cards created
-          </span>
+          {data.remaining <= 0 ? (
+            <span className="font-mono text-[10px] tracking-widest" style={{ color: "rgba(255,100,100,0.9)" }}>
+              🔴 <strong className="text-white/75">SOLD OUT</strong> · All 2,000 cards issued
+            </span>
+          ) : (
+            <span className="font-mono text-[10px] tracking-widest" style={{ color: "rgba(255,130,150,0.9)" }}>
+              🔥 <strong className="text-white/75">{data.issued.toLocaleString()}</strong> of 2,000 cards claimed
+            </span>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
@@ -123,6 +136,8 @@ function Step({
 export default function LandingPage() {
   const navigate = useNavigate();
   const [demoReady, setDemoReady] = useState(false);
+  const [soldOut, setSoldOut] = useState(false);
+  const localPrice = useCurrencyPrice();
 
   // Check if demo card layers are ready
   useEffect(() => {
@@ -163,7 +178,7 @@ export default function LandingPage() {
 
           {/* Left: copy */}
           <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left lg:pt-10">
-            <RegistryCounter />
+            <RegistryCounter onSoldOut={setSoldOut} />
 
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -205,8 +220,9 @@ export default function LandingPage() {
               className="mt-7 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto"
             >
               <button
-                onClick={() => navigate("/create")}
-                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 rounded-xl px-8 py-4 font-black tracking-[0.18em] text-[14px] relative overflow-hidden group transition-all duration-200"
+                onClick={() => !soldOut && navigate("/create")}
+                disabled={soldOut}
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 rounded-xl px-8 py-4 font-black tracking-[0.18em] text-[14px] relative overflow-hidden group transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   background: "linear-gradient(180deg, #1e0a16 0%, #130610 100%)",
                   border: "1px solid rgba(255,32,96,0.35)",
@@ -218,13 +234,13 @@ export default function LandingPage() {
                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,32,96,0.08), transparent)", animation: "shimmer-sweep 2.5s ease-in-out infinite" }} />
                 </div>
                 <Zap className="w-4 h-4 relative z-10" style={{ color: "#ff2060", filter: "drop-shadow(0 0 4px rgba(255,32,96,0.6))" }} />
-                <span className="relative z-10" style={{ color: "#ff2060" }}>Make Your Card</span>
-                <ArrowRight className="w-4 h-4 relative z-10" style={{ color: "#ff2060" }} />
+                <span className="relative z-10" style={{ color: "#ff2060" }}>{soldOut ? "SOLD OUT" : "Make Your Card"}</span>
+                {!soldOut && <ArrowRight className="w-4 h-4 relative z-10" style={{ color: "#ff2060" }} />}
               </button>
 
               <div className="flex items-center space-x-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#00ff7f]" style={{ boxShadow: "0 0 5px #00ff7f" }} />
-                <span className="font-mono text-[10px] text-white/28 tracking-widest">$19.99 · no account needed</span>
+                <span className="font-mono text-[10px] text-white/28 tracking-widest">{localPrice} · no account needed</span>
               </div>
             </motion.div>
 
@@ -315,14 +331,14 @@ export default function LandingPage() {
               num="2"
               icon={<Cpu className="w-5 h-5 text-[#ff2060]" />}
               title="AI stylizes your portrait"
-              desc="Google Gemini transforms your face into a neon-noir painting. Takes about 30 seconds."
+              desc="AI transforms your face into a neon-noir painting in Solara City style. Takes about 30 seconds."
               delay={0.1}
             />
             <Step
               num="3"
               icon={<Download className="w-5 h-5 text-[#9b59ff]" />}
               title="Download and share"
-              desc="Get your HD interactive card + shareable link. Pay once, yours forever (for 7 days)."
+              desc="Get your HD interactive card + permanent shareable link. Pay once, yours forever."
               delay={0.2}
             />
           </div>
@@ -350,7 +366,7 @@ export default function LandingPage() {
               className="text-5xl font-black mb-1"
               style={{ color: "#ff2060", textShadow: "0 0 24px rgba(255,32,96,0.35)" }}
             >
-              $19.99
+              {localPrice}
             </p>
             <p className="font-mono text-[11px] text-white/30 tracking-widest mb-6">No account. No subscription. Instant delivery.</p>
 
@@ -372,8 +388,9 @@ export default function LandingPage() {
             </ul>
 
             <button
-              onClick={() => navigate("/create")}
-              className="w-full rounded-xl py-4 font-black tracking-[0.2em] text-[13px] relative overflow-hidden group transition-all"
+              onClick={() => !soldOut && navigate("/create")}
+              disabled={soldOut}
+              className="w-full rounded-xl py-4 font-black tracking-[0.2em] text-[13px] relative overflow-hidden group transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: "linear-gradient(180deg, #1e0a16 0%, #130610 100%)",
                 border: "1px solid rgba(255,32,96,0.3)",
@@ -382,7 +399,7 @@ export default function LandingPage() {
               }}
             >
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(255,32,96,0.07)" }} />
-              CLAIM MY PLAYER CARD →
+              {soldOut ? "SOLD OUT · ALL 2,000 CARDS ISSUED" : "CLAIM MY PLAYER CARD →"}
             </button>
           </div>
         </motion.div>

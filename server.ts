@@ -23,6 +23,7 @@ import {
   saveJobLayers,
   logConsent,
   getRegistryCount,
+  deleteJob,
 } from "./src/db.ts";
 
 // Edition seal computed relative to launch date (set LAUNCH_DATE env var, e.g. "2025-06-24")
@@ -103,6 +104,9 @@ async function startServer() {
       if (!age_confirmed || !ownership_confirmed || !privacy_accepted) {
         return res.status(400).json({ error: "Consent required" });
       }
+
+      const { remaining } = getRegistryCount();
+      if (remaining <= 0) return res.status(410).json({ error: "All 2,000 Solara City resident IDs have been issued." });
 
       const jobId = crypto.randomUUID();
       const playerNumber = createJob(jobId, name, city);
@@ -509,6 +513,13 @@ async function startServer() {
   });
 
   
+  app.delete("/api/jobs/:id", (req: any, res: any) => {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: "Not found" });
+    deleteJob(req.params.id);
+    res.json({ ok: true });
+  });
+
   // Gumroad post-payment redirect — called via the ?wanted= URL parameter on the overlay link.
   // Marks the job DONE and redirects user to their card.
   // Only accepts jobs in PREVIEW_READY status to prevent replaying against arbitrary UUIDs.
@@ -848,6 +859,7 @@ function runCleanup() {
       portrait_layer_b64 = NULL, text_layer_b64 = NULL,
       preview_base64 = NULL, unwatermarked_base64 = NULL
     WHERE created_at < datetime('now', '-7 days')
+      AND status != 'DONE'
       AND (bg_layer_b64 IS NOT NULL OR preview_base64 IS NOT NULL)
   `).run();
   db.prepare(`DELETE FROM consent_log WHERE created_at < datetime('now', '-12 months')`).run();

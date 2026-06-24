@@ -98,25 +98,6 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
     }
   };
 
-  const compressImage = (f: File): Promise<Blob> =>
-    new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        const MAX = 1024;
-        if (width > height) { if (width > MAX) { height = Math.round(height * MAX / width); width = MAX; } }
-        else { if (height > MAX) { width = Math.round(width * MAX / height); height = MAX; } }
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return resolve(f);
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => resolve(blob ?? f), "image/jpeg", 0.92);
-      };
-      img.onerror = () => resolve(f);
-      img.src = URL.createObjectURL(f);
-    });
-
   const busy = isUploading || falUploading;
   const canSubmit = file && name && city && ageConfirmed && ownershipConfirmed && privacyAccepted && !busy;
 
@@ -175,7 +156,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               <div className="w-1.5 h-1.5 rounded-full bg-[#ff6b1a]" style={{ animation: "pulse-pink 1.5s ease-in-out infinite" }} />
               {counter ? (
                 <span className="font-mono text-[10px] tracking-widest" style={{ color: "rgba(255,160,80,0.9)" }}>
-                  <span className="text-white/70 font-bold">{(10000 - counter.remaining).toLocaleString()}</span>
+                  <span className="text-white/70 font-bold">{counter.issued.toLocaleString()}</span>
                   {" "}IDs ISSUED · {" "}
                   <span className="text-[#ff6b1a] font-bold">{counter.remaining.toLocaleString()}</span>
                   {" "}REMAINING
