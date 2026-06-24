@@ -25,6 +25,7 @@ import {
   getRegistryCount,
   setPublicId,
   getJobByPublicId,
+  getLeaderboard,
 } from "./src/db.ts";
 
 function generatePublicId(): string {
@@ -553,6 +554,40 @@ async function startServer() {
     });
   });
 
+  app.get("/api/public/:publicId/thumb", jobLimiter, async (req: any, res: any) => {
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job || !job.bg_layer_b64 || !job.portrait_layer_b64 || !job.frame_layer_b64 || !job.text_layer_b64) {
+      return res.status(404).send("Not found");
+    }
+    try {
+      const thumb = await sharp(Buffer.from(job.bg_layer_b64, "base64"))
+        .composite([
+          { input: Buffer.from(job.portrait_layer_b64, "base64") },
+          { input: Buffer.from(job.frame_layer_b64, "base64") },
+          { input: Buffer.from(job.text_layer_b64, "base64") },
+        ])
+        .resize(220, 293, { fit: "fill" })
+        .jpeg({ quality: 82 })
+        .toBuffer();
+      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+      res.end(thumb);
+    } catch {
+      res.status(500).send("Error");
+    }
+  });
+
+  app.get("/api/leaderboard", (req: any, res: any) => {
+    const entries = getLeaderboard(50);
+    res.json(entries.map(e => ({
+      player_number: e.player_number,
+      name: e.name_input,
+      city: e.city_input,
+      public_id: e.public_id,
+      district: e.district,
+    })));
+  });
+
   // Gumroad post-payment redirect — called via the ?wanted= URL parameter on the overlay link.
   // Marks the job DONE and redirects user to their card.
   // Only accepts jobs in PREVIEW_READY status to prevent replaying against arbitrary UUIDs.
@@ -562,8 +597,10 @@ async function startServer() {
 
     const job = getJob(jobId);
     if (!job || job.status !== "PREVIEW_READY") {
-      // Already DONE (e.g. double-redirect) — just send them to the card
-      if (job?.status === "DONE") return res.redirect(`/card/${jobId}`);
+      // Already DONE (e.g. double-redirect) — send to public card URL if available
+      if (job?.status === "DONE") {
+        return res.redirect(job.public_id ? `/id/${job.public_id}` : "/");
+      }
       return res.redirect("/");
     }
 

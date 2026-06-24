@@ -126,9 +126,27 @@ export function getJobByPublicId(publicId: string): Job | undefined {
 
 export function getRegistryCount(): { issued: number; remaining: number } {
   const row = db.prepare(
-    "SELECT COUNT(*) as count FROM jobs WHERE status NOT IN ('FAILED', 'CREATED')"
+    "SELECT COUNT(*) as count FROM jobs WHERE status NOT IN ('FAILED', 'CREATED') AND id != 'demo-card-v7'"
   ).get() as { count: number };
   return { issued: row.count, remaining: Math.max(0, 2000 - row.count) };
+}
+
+export interface LeaderboardEntry {
+  player_number: number;
+  name_input: string;
+  city_input: string;
+  public_id: string;
+  district: string;
+}
+
+export function getLeaderboard(limit = 50): LeaderboardEntry[] {
+  return db.prepare(`
+    SELECT player_number, name_input, city_input, public_id, district
+    FROM jobs
+    WHERE status = 'DONE' AND public_id IS NOT NULL AND id != 'demo-card-v7'
+    ORDER BY player_number ASC
+    LIMIT ?
+  `).all(limit) as LeaderboardEntry[];
 }
 
 export function logConsent(jobId: string, age: boolean, ownership: boolean, privacy: boolean, ipHash: string) {

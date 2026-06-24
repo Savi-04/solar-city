@@ -133,6 +133,101 @@ function Step({
   );
 }
 
+interface LeaderboardEntry {
+  player_number: number;
+  name: string;
+  city: string;
+  public_id: string;
+  district: string;
+}
+
+function LeaderboardSection() {
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/leaderboard")
+      .then((r) => r.json())
+      .then((data) => { setEntries(data); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  if (!loaded || entries.length === 0) return null;
+
+  return (
+    <section className="relative z-10 py-16 px-4">
+      <div className="max-w-5xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-10"
+        >
+          <div className="inline-flex items-center space-x-2 mb-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#00ff7f]" style={{ animation: "pulse-green 2s ease-in-out infinite", boxShadow: "0 0 6px #00ff7f" }} />
+            <p className="font-mono text-[9px] tracking-[0.4em] text-white/25 uppercase">Registered Residents</p>
+            <div className="w-1.5 h-1.5 rounded-full bg-[#00ff7f]" style={{ animation: "pulse-green 2s ease-in-out infinite 0.5s", boxShadow: "0 0 6px #00ff7f" }} />
+          </div>
+          <h2 className="text-2xl font-black text-white/85 tracking-tight">Hall of Citizens</h2>
+          <p className="font-mono text-[10px] text-white/25 mt-1 tracking-widest">First allocated · Lowest numbers rarest</p>
+        </motion.div>
+
+        <div
+          className="flex space-x-4 overflow-x-auto pb-4"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          {entries.map((entry, i) => (
+            <motion.a
+              key={entry.public_id}
+              href={`/id/${entry.public_id}`}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: Math.min(i * 0.05, 0.4) }}
+              className="shrink-0 flex flex-col items-center group cursor-pointer"
+              style={{ width: "140px" }}
+            >
+              <div
+                className="relative w-[140px] rounded-xl overflow-hidden transition-all duration-300 group-hover:scale-105"
+                style={{
+                  height: "187px",
+                  boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 4px 20px rgba(0,0,0,0.5)",
+                }}
+              >
+                <img
+                  src={`/api/public/${entry.public_id}/thumb`}
+                  alt={`${entry.name}'s card`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                <div
+                  className="absolute top-2 left-2 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded"
+                  style={{
+                    background: "rgba(0,0,0,0.65)",
+                    border: "1px solid rgba(255,196,74,0.4)",
+                    color: "#ffc94a",
+                    backdropFilter: "blur(4px)",
+                  }}
+                >
+                  #{entry.player_number.toString().padStart(4, "0")}
+                </div>
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ background: "linear-gradient(135deg, rgba(255,32,96,0.08), rgba(0,232,255,0.06))" }}
+                />
+              </div>
+              <div className="mt-2.5 text-center space-y-0.5 w-full px-1">
+                <p className="font-mono text-[10px] font-bold text-white/70 tracking-wider truncate uppercase">{entry.name}</p>
+                <p className="font-mono text-[9px] text-white/30 tracking-widest truncate uppercase">{entry.city}</p>
+              </div>
+            </motion.a>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [demoReady, setDemoReady] = useState(false);
@@ -344,6 +439,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── LEADERBOARD ──────────────────────────────────────────────── */}
+      <LeaderboardSection />
 
       {/* ── PRICE CALLOUT ─────────────────────────────────────────────── */}
       <section className="relative z-10 py-16 px-4">
