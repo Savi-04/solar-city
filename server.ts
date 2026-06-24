@@ -10,10 +10,12 @@ import { fal } from "@fal-ai/client";
 import sharp from "sharp";
 import crypto from "crypto";
 import { Readable } from "stream";
-import { readFileSync } from "fs";
+import { readFileSync, createReadStream } from "fs";
+import * as fsPromises from "fs/promises";
 import nodemailer from "nodemailer";
 
 fal.config({ credentials: process.env.FAL_KEY });
+const videoGenInProgress = new Set<string>(); // prevents double-charging
 import {
   db,
   createJob,
@@ -113,6 +115,7 @@ async function startServer() {
         imgSrc: ["'self'", "data:", "blob:", "https://api.dicebear.com"],
         connectSrc: ["'self'", "https://open.er-api.com", "https://*.fal.run", "https://*.fal.ai", "https://fal.media", "https://*.fal.media"],
         frameSrc: ["'none'"],
+        mediaSrc: ["'self'", "blob:"],
       }
     }
   }));
@@ -507,8 +510,182 @@ async function startServer() {
     }
   }
 
+  // ─── Video generation (fal.ai Seedance) ─────────────────────────────────────
+  async function generateCardVideo(jobId: string): Promise<void> {
+    const job = getJob(jobId);
+    if (!job?.bg_layer_b64 || !job?.portrait_layer_b64 || !job?.frame_layer_b64 || !job?.text_layer_b64 || !job.public_id) return;
+
+    const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
+    await fsPromises.mkdir(videosDir, { recursive: true });
+    const videoPath = path.join(videosDir, `${job.public_id}.mp4`);
+
+    // Already generated — don't re-charge
+    try { await fsPromises.access(videoPath); return; } catch {}
+
+    console.log(`[video] Starting Seedance generation for ${jobId}`);
+
+    // ── Build 1080×1920 starting frame ──────────────────────────────────────
+    function buildParticlesSvg(): string {
+      const colors = ['#00e8ff', '#ff0088', '#ff6b1a', '#9b59ff', '#00ff7f'];
+      const pts: [number, number, number, number][] = [
+        [87,145,1.0,0],[234,280,1.5,1],[456,180,0.8,2],[678,320,1.2,3],
+        [145,450,1.0,4],[890,200,1.5,0],[320,600,0.8,1],[560,520,1.2,2],
+        [780,410,1.0,3],[60,750,1.5,4],[980,680,0.8,0],[430,820,1.2,1],
+        [180,900,1.0,2],[720,780,1.5,3],[340,1050,0.8,4],[850,950,1.2,0],
+        [500,1100,1.0,1],[100,1200,1.5,2],[770,1150,0.8,3],[280,1280,1.2,4],
+        [620,1220,1.0,0],[940,1100,1.5,1],[160,1350,0.8,2],[480,1330,1.2,3],
+        [800,1300,1.0,4],[380,350,1.5,0],[700,480,0.8,1],[200,680,1.2,2],
+        [1020,450,1.0,3],[50,580,1.5,4],
+      ];
+      return pts.map(([x,y,r,ci]) =>
+        `<circle cx="${x}" cy="${y}" r="${r}" fill="${colors[ci]}" opacity="${(0.2 + r * 0.08).toFixed(2)}"/>`
+      ).join('\n  ');
+    }
+
+    const bgSvg = `<svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="g1" cx="50%" cy="30%" r="55%">
+      <stop offset="0%" stop-color="#00e8ff" stop-opacity="0.11"/>
+      <stop offset="100%" stop-color="#03030b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="70%" cy="85%" r="45%">
+      <stop offset="0%" stop-color="#ff6b1a" stop-opacity="0.09"/>
+      <stop offset="100%" stop-color="#03030b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g3" cx="8%" cy="55%" r="38%">
+      <stop offset="0%" stop-color="#ff0088" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#03030b" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1920" fill="#03030b"/>
+  <rect width="1080" height="1920" fill="url(#g1)"/>
+  <rect width="1080" height="1920" fill="url(#g2)"/>
+  <rect width="1080" height="1920" fill="url(#g3)"/>
+  <!-- city silhouettes -->
+  <rect x="-10" y="1550" width="90" height="380" fill="#050510"/>
+  <rect x="70" y="1480" width="55" height="450" fill="#060614"/>
+  <rect x="110" y="1530" width="75" height="400" fill="#04040e"/>
+  <rect x="175" y="1510" width="45" height="420" fill="#070717"/>
+  <rect x="205" y="1440" width="90" height="490" fill="#060613"/>
+  <rect x="280" y="1560" width="60" height="370" fill="#050510"/>
+  <rect x="330" y="1500" width="40" height="430" fill="#080818"/>
+  <rect x="360" y="1580" width="110" height="350" fill="#04040d"/>
+  <rect x="460" y="1520" width="70" height="410" fill="#060615"/>
+  <rect x="520" y="1460" width="50" height="470" fill="#050511"/>
+  <rect x="555" y="1540" width="85" height="390" fill="#070716"/>
+  <rect x="630" y="1490" width="65" height="440" fill="#060614"/>
+  <rect x="685" y="1550" width="45" height="380" fill="#04040e"/>
+  <rect x="720" y="1470" width="80" height="460" fill="#080818"/>
+  <rect x="790" y="1530" width="60" height="400" fill="#050512"/>
+  <rect x="840" y="1500" width="95" height="430" fill="#060616"/>
+  <rect x="925" y="1520" width="55" height="410" fill="#04040d"/>
+  <rect x="970" y="1560" width="120" height="370" fill="#070715"/>
+  <!-- neon windows -->
+  <rect x="80" y="1490" width="3" height="2" fill="#00e8ff" opacity="0.7"/>
+  <rect x="120" y="1540" width="2" height="3" fill="#ff6b1a" opacity="0.6"/>
+  <rect x="220" y="1455" width="4" height="2" fill="#ff0088" opacity="0.5"/>
+  <rect x="295" y="1565" width="3" height="2" fill="#9b59ff" opacity="0.5"/>
+  <rect x="415" y="1570" width="3" height="2" fill="#ff6b1a" opacity="0.6"/>
+  <rect x="565" y="1545" width="4" height="2" fill="#ff0088" opacity="0.4"/>
+  <rect x="650" y="1500" width="3" height="2" fill="#9b59ff" opacity="0.5"/>
+  <rect x="745" y="1510" width="3" height="2" fill="#00e8ff" opacity="0.7"/>
+  <rect x="855" y="1515" width="4" height="2" fill="#00e8ff" opacity="0.4"/>
+  <rect x="940" y="1530" width="3" height="2" fill="#ff6b1a" opacity="0.5"/>
+  <!-- horizon glow -->
+  <rect x="0" y="1440" width="1080" height="1" fill="rgba(0,232,255,0.18)"/>
+  <!-- particles -->
+  ${buildParticlesSvg()}
+</svg>`;
+
+    const bgBuffer = await sharp(Buffer.from(bgSvg)).png().toBuffer();
+
+    // Extract the stylized portrait face (520×600 at position 140,100 in the layer)
+    const portraitFaceBuffer = await sharp(Buffer.from(job.portrait_layer_b64, "base64"))
+      .extract({ left: 140, top: 100, width: 520, height: 600 })
+      .resize(560, 646, { fit: "fill" })
+      .png()
+      .toBuffer();
+
+    // Full card composite, scaled + rotated slightly
+    const cardComposite = await sharp(Buffer.from(job.bg_layer_b64, "base64"))
+      .composite([
+        { input: Buffer.from(job.portrait_layer_b64, "base64") },
+        { input: Buffer.from(job.frame_layer_b64, "base64") },
+        { input: Buffer.from(job.text_layer_b64, "base64") },
+      ])
+      .resize(360, 480)
+      .rotate(-6, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer();
+
+    const cardMeta = await sharp(cardComposite).metadata();
+    const cardW = cardMeta.width ?? 408;
+    const cardH = cardMeta.height ?? 515;
+    const portraitLeft = Math.round((1080 - 560) / 2); // 260
+    const portraitTop = 55;
+    const portraitBottom = portraitTop + 646; // 701
+    const cardLeft = Math.round((1080 - cardW) / 2);
+    const cardTop = 760;
+
+    // Thin lanyard line between portrait bottom and card top
+    const lanyardSvg = `<svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg">
+  <line x1="540" y1="${portraitBottom}" x2="540" y2="${cardTop + 8}"
+        stroke="rgba(210,215,230,0.50)" stroke-width="1.5" stroke-dasharray="4,3"/>
+</svg>`;
+
+    const startingFrame = await sharp(bgBuffer)
+      .composite([
+        { input: portraitFaceBuffer, top: portraitTop, left: portraitLeft },
+        { input: Buffer.from(lanyardSvg), top: 0, left: 0 },
+        { input: cardComposite, top: cardTop, left: cardLeft },
+      ])
+      .jpeg({ quality: 95 })
+      .toBuffer();
+
+    // ── Call fal.ai Seedance 2.0 ─────────────────────────────────────────────
+    const PROMPT = [
+      "Cinematic cyberpunk game intro, 9:16 vertical.",
+      "The character's face is completely frozen and unchanged — no morphing, no alteration.",
+      "Dark neon city atmosphere pulses around them.",
+      "Wind and glowing light particles stream continuously from left to right across the frame.",
+      "A holographic ID card hanging from a thin black lanyard around their neck sways with",
+      "gentle pendulum physics — subtle ±5 degree swing.",
+      "The card surface shimmers with iridescent holographic rainbow light as it moves.",
+      "Teal, amber and magenta neon glow breathes from the background cityscape.",
+      "Scene fades in from complete darkness at the very start.",
+      "Static camera — no movement, no zoom, no pan, no shake.",
+      "Epic game cinematic quality, 4K detail.",
+    ].join(" ");
+
+    const result = await fal.subscribe("bytedance/seedance-2.0/fast/image-to-video", {
+      input: {
+        image_url: `data:image/jpeg;base64,${startingFrame.toString("base64")}`,
+        prompt: PROMPT,
+        duration: 5,
+        resolution: "720p",
+        aspect_ratio: "9:16",
+      },
+      logs: true,
+      onQueueUpdate: (update: any) => {
+        if (update.status === "IN_PROGRESS") console.log(`[video] Seedance progress for ${jobId}`);
+      },
+    }) as any;
+
+    const videoUrl: string | undefined = result?.data?.video?.url;
+    if (!videoUrl) throw new Error("No video URL in Seedance response");
+
+    const videoRes = await fetch(videoUrl);
+    if (!videoRes.ok) throw new Error(`Failed to download video: ${videoRes.status}`);
+    const videoBuf = Buffer.from(await videoRes.arrayBuffer());
+    await fsPromises.writeFile(videoPath, videoBuf);
+    console.log(`[video] Saved ${videoBuf.length} bytes → ${videoPath}`);
+  }
+
   // Endpoints to serve the layers
   app.get("/api/jobs/:id/layers", jobLimiter, (req, res) => {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: "Not found" });
+    if (!job.bg_layer_b64) return res.status(404).json({ error: "Layers not generated yet" });
     const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: "Not found" });
     if (!job.bg_layer_b64) return res.status(404).json({ error: "Layers not generated yet" });
@@ -813,6 +990,54 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Full-resolution card JPEG for OG meta tag images (800×1066)
+  app.get("/api/public/:publicId/og-card", jobLimiter, async (req: any, res: any) => {
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job?.bg_layer_b64 || !job?.portrait_layer_b64 || !job?.frame_layer_b64 || !job?.text_layer_b64) {
+      return res.status(404).send("Not found");
+    }
+    try {
+      const img = await sharp(Buffer.from(job.bg_layer_b64, "base64"))
+        .composite([
+          { input: Buffer.from(job.portrait_layer_b64, "base64") },
+          { input: Buffer.from(job.frame_layer_b64, "base64") },
+          { input: Buffer.from(job.text_layer_b64, "base64") },
+        ])
+        .jpeg({ quality: 90 })
+        .toBuffer();
+      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.end(img);
+    } catch { res.status(500).send("Error"); }
+  });
+
+  // TikTok MP4 download — serves cached video or triggers on-demand generation
+  app.get("/api/public/:publicId/video.mp4", jobLimiter, async (req: any, res: any) => {
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job) return res.status(404).json({ error: "Not found" });
+
+    const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
+    const videoPath = path.join(videosDir, `${req.params.publicId}.mp4`);
+
+    try {
+      const stat = await fsPromises.stat(videoPath);
+      res.setHeader("Content-Type", "video/mp4");
+      res.setHeader("Content-Disposition", `attachment; filename="solara-city-card.mp4"`);
+      res.setHeader("Content-Length", String(stat.size));
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      createReadStream(videoPath).pipe(res);
+    } catch {
+      // Video not yet on disk — trigger on-demand if card is ready
+      if (job.status === "DONE" && job.bg_layer_b64 && !videoGenInProgress.has(job.id)) {
+        videoGenInProgress.add(job.id);
+        generateCardVideo(job.id)
+          .catch(e => console.error("[video] On-demand generation failed:", e))
+          .finally(() => videoGenInProgress.delete(job.id));
+      }
+      res.status(202).json({ status: "generating" });
+    }
+  });
+
   // OG image — flat composite of the demo card for social link previews
   app.get("/api/og-image", async (req, res) => {
     try {
@@ -851,6 +1076,42 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     const indexHtml = readFileSync(path.join(distPath, "index.html"), "utf8");
     app.use(express.static(distPath));
+
+    // Per-card OG tags for /id/:publicId — must be before the catch-all
+    app.get("/id/:publicId", (req: any, res: any) => {
+      const job = getJobByPublicId(req.params.publicId);
+      const base = `${req.protocol}://${req.get("host")}`;
+      const cardUrl = `${base}/id/${req.params.publicId}`;
+
+      const title = job?.status === "DONE" && job.name_input
+        ? `RESIDENT ${job.name_input.toUpperCase()} — SOLARA CITY ID`
+        : "SOLARA CITY — Holographic ID Card";
+      const desc = job?.status === "DONE"
+        ? `${job.name_input}, ${job.city_input} · Solara City Bureau of Residents`
+        : "Turn your selfie into a holographic game-art ID card";
+      const ogImage = job?.status === "DONE"
+        ? `${base}/api/public/${req.params.publicId}/og-card`
+        : `${base}/api/og-image`;
+
+      const html = indexHtml.replace(
+        "</head>",
+        `  <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${desc}" />
+  <meta property="og:image" content="${ogImage}" />
+  <meta property="og:image:width" content="800" />
+  <meta property="og:image:height" content="1066" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="${cardUrl}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${title}" />
+  <meta name="twitter:description" content="${desc}" />
+  <meta name="twitter:image" content="${ogImage}" />
+</head>`
+      );
+      res.setHeader("Content-Type", "text/html");
+      res.send(html);
+    });
+
     app.get("*", (req, res) => {
       const base = `${req.protocol}://${req.get("host")}`;
       const html = indexHtml.replace(
