@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Loader2, Zap, Star, Shield, Link as LinkIcon } from "lucide-react";
 import { motion } from "motion/react";
 import InteractiveCard from "./InteractiveCard";
@@ -30,9 +30,8 @@ const FEATURES = [
   { icon: <LinkIcon className="w-3 h-3" />, label: "Shareable link + download for IG / X / TikTok", color: "#b8ff3c" },
 ];
 
-export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isProcessingPayment, playerNumber }: PreviewStepProps) {
+export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay: _onPay, isProcessingPayment, playerNumber }: PreviewStepProps) {
   const [district, setDistrict] = useState<string | null>(null);
-  const gumroadRef = useRef<HTMLAnchorElement>(null);
 
   const gumroadProductUrl = import.meta.env.VITE_GUMROAD_PRODUCT_URL as string | undefined;
   const cardUrl = typeof window !== "undefined" ? `${window.location.origin}/card/${jobId}` : "";
@@ -146,16 +145,10 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
             ))}
           </div>
 
-          {/* Hidden Gumroad overlay trigger */}
-          {gumroadHref && (
-            <a ref={gumroadRef} href={gumroadHref} className="gumroad-button" style={{ display: "none" }} aria-hidden="true" />
-          )}
-
           {/* Pay button */}
           <motion.button
             onClick={() => {
-              if (gumroadHref) gumroadRef.current?.click();
-              onPay();
+              if (gumroadHref) window.location.href = gumroadHref;
             }}
             disabled={isProcessingPayment}
             whileHover={{ scale: isProcessingPayment ? 1 : 1.01 }}

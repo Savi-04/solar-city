@@ -418,9 +418,11 @@ async function startServer() {
     `;
 
     try {
-      const bgBuffer = await sharp(Buffer.from(bgSvg)).png().toBuffer();
-      const frameBuffer = await sharp(Buffer.from(frameSvg)).png().toBuffer();
-      const textBuffer = await sharp(Buffer.from(textSvg)).png().toBuffer();
+      const [bgBuffer, frameBuffer, textBuffer] = await Promise.all([
+        sharp(Buffer.from(bgSvg)).png().toBuffer(),
+        sharp(Buffer.from(frameSvg)).png().toBuffer(),
+        sharp(Buffer.from(textSvg)).png().toBuffer(),
+      ]);
 
       const unwatermarkedBuffer = await sharp(bgBuffer)
         .composite([

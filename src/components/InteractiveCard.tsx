@@ -173,8 +173,14 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   }
 
   if (paymentPending) {
+    const gumroadProductUrl = import.meta.env.VITE_GUMROAD_PRODUCT_URL as string | undefined;
+    const completeUrl = `${window.location.origin}/api/gumroad/complete?job_id=${encodeURIComponent(activeId || "")}`;
+    const gumroadHref = gumroadProductUrl
+      ? `${gumroadProductUrl}?wanted=${encodeURIComponent(completeUrl)}`
+      : undefined;
+
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center space-y-3"
+      <div className="min-h-screen flex flex-col items-center justify-center space-y-5 px-6"
         style={{ background: "#05050d" }}>
         <div className="w-10 h-10 rounded-full border-2 animate-spin"
           style={{ borderColor: "rgba(255,107,26,0.5)", borderTopColor: "transparent" }} />
@@ -182,9 +188,24 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
           style={{ color: "rgba(255,107,26,0.55)", animation: "blink 1.4s step-end infinite" }}>
           Confirming Payment…
         </p>
-        <p className="font-mono text-[9px] text-white/20 tracking-widest">
-          This page will update automatically
+        <p className="font-mono text-[9px] text-white/20 tracking-widest text-center">
+          This page will update automatically after payment
         </p>
+        {gumroadHref && (
+          <a
+            href={gumroadHref}
+            className="mt-2 px-6 py-3 rounded-xl font-mono text-[11px] tracking-[0.2em] uppercase text-center"
+            style={{
+              background: "linear-gradient(180deg, #1a0c14 0%, #110710 100%)",
+              border: "1px solid rgba(255,32,96,0.35)",
+              color: "#ff2060",
+              textDecoration: "none",
+              boxShadow: "0 0 18px rgba(255,32,96,0.12)",
+            }}
+          >
+            Complete Your Purchase →
+          </a>
+        )}
       </div>
     );
   }
