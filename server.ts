@@ -600,7 +600,13 @@ async function startServer() {
   ${buildParticlesSvg()}
 </svg>`;
 
-    const bgBuffer = await sharp(Buffer.from(bgSvg)).png().toBuffer();
+    const BASE_W = 1080, BASE_H = 1920;
+
+    // Force to exact frame dimensions — Railway's librsvg may render at a different DPI
+    const bgBuffer = await sharp(Buffer.from(bgSvg))
+      .resize(BASE_W, BASE_H, { fit: "fill" })
+      .png()
+      .toBuffer();
 
     // Extract the stylized portrait face (520×600 at position 140,100 in the layer)
     const portraitFaceBuffer = await sharp(Buffer.from(job.portrait_layer_b64, "base64"))
@@ -621,25 +627,28 @@ async function startServer() {
       .png()
       .toBuffer();
 
-    const cardMeta = await sharp(cardComposite).metadata();
-    const cardW = cardMeta.width ?? 408;
-    const cardH = cardMeta.height ?? 515;
-    const portraitLeft = Math.round((1080 - 560) / 2); // 260
+    const { width: cardW = 408, height: cardH = 515 } = await sharp(cardComposite).metadata();
+    const portraitLeft = Math.round((BASE_W - 560) / 2); // 260
     const portraitTop = 55;
     const portraitBottom = portraitTop + 646; // 701
-    const cardLeft = Math.round((1080 - cardW) / 2);
+    const cardLeft = Math.max(0, Math.round((BASE_W - cardW) / 2));
     const cardTop = 760;
 
-    // Thin lanyard line between portrait bottom and card top
-    const lanyardSvg = `<svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg">
+    // Pre-render lanyard SVG to exact frame dimensions (passing raw SVG string to
+    // composite is unreliable — Sharp may render it at a different size)
+    const lanyardSvg = `<svg width="${BASE_W}" height="${BASE_H}" xmlns="http://www.w3.org/2000/svg">
   <line x1="540" y1="${portraitBottom}" x2="540" y2="${cardTop + 8}"
         stroke="rgba(210,215,230,0.50)" stroke-width="1.5" stroke-dasharray="4,3"/>
 </svg>`;
+    const lanyardBuffer = await sharp(Buffer.from(lanyardSvg))
+      .resize(BASE_W, BASE_H, { fit: "fill" })
+      .png()
+      .toBuffer();
 
     const startingFrame = await sharp(bgBuffer)
       .composite([
         { input: portraitFaceBuffer, top: portraitTop, left: portraitLeft },
-        { input: Buffer.from(lanyardSvg), top: 0, left: 0 },
+        { input: lanyardBuffer, top: 0, left: 0 },
         { input: cardComposite, top: cardTop, left: cardLeft },
       ])
       .jpeg({ quality: 95 })
