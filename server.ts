@@ -562,7 +562,8 @@ async function startServer() {
     console.log(`[video] card → ${cardUrl}`);
 
     // ── Call fal.ai Kling O3 Standard reference-to-video ────────────────────
-    const PROMPT = `Medium close-up shot, cinematic 2.39:1 aspect ratio. @Element1 stands still facing the camera in a dimly lit environment, holding @Image1 at chest height with both hands, tilted slightly toward camera.
+    // image_urls only (no elements) — portrait = @Image1, card = @Image2
+    const PROMPT = `Medium close-up shot, cinematic 2.39:1 aspect ratio. @Image1 stands still facing the camera in a dimly lit environment, holding @Image2 at chest height with both hands, tilted slightly toward camera.
 
 The subject's face, bone structure, skin texture, hair, and all physical features must remain pixel-identical to the reference — no redrawing, no beautification, no morphing. Only the lighting environment changes around them.
 
@@ -584,12 +585,10 @@ Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grai
       input: {
         prompt: PROMPT,
         negative_prompt: NEGATIVE_PROMPT,
-        elements: [{ frontal_image_url: portraitUrl }],
-        image_urls: [cardUrl],
+        image_urls: [portraitUrl, cardUrl],
         duration: "10",
         aspect_ratio: "9:16",
         generate_audio: false,
-        cfg_scale: 0.4,
       },
       logs: true,
       onQueueUpdate: (update: any) => {
@@ -613,7 +612,8 @@ Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grai
     console.log(`[video] Saved ${videoBuf.length} bytes → ${videoPath}`);
     saveVideoOnly(jobId, "DONE");
     } catch (err: any) {
-      console.error(`[video] generateCardVideo FAILED for ${jobId}:`, err?.message || err);
+      const detail = err?.body?.detail ? JSON.stringify(err.body.detail) : '';
+      console.error(`[video] generateCardVideo FAILED for ${jobId}:`, err?.message || err, detail ? `| detail: ${detail}` : '');
       // Store error marker so the client stops polling and shows error state
       saveVideoOnly(jobId, "ERROR");
       throw err;
