@@ -13,6 +13,7 @@ interface JobRow {
   has_token: number;
   video_b64: string | null;
   video_attempts: number;
+  video_error: string | null;
 }
 
 interface SyncResult {
@@ -338,10 +339,11 @@ export default function AdminPaidUsers() {
                           </a>
                         ) : job.video_b64 === "ERROR" ? (
                           <span
-                            className="px-2 py-0.5 rounded text-[9px] tracking-widest uppercase font-bold"
+                            className="px-2 py-0.5 rounded text-[9px] tracking-widest uppercase font-bold cursor-help"
+                            title={job.video_error ?? "unknown error"}
                             style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1px solid rgba(255,68,68,0.3)" }}
                           >
-                            FAILED
+                            FAILED ⓘ
                           </span>
                         ) : (
                           <span style={{ color: "rgba(255,255,255,0.15)" }}>—</span>

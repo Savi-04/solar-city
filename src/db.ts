@@ -47,6 +47,7 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN complete_token TEXT;'); } catch (e) {
 try { db.exec('ALTER TABLE jobs ADD COLUMN buyer_email TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN skill_input TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN video_attempts INTEGER DEFAULT 0;'); } catch (e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN video_error TEXT;'); } catch (e) {}
 
 export interface Job {
   id: string;
@@ -70,6 +71,7 @@ export interface Job {
   buyer_email: string | null;
   skill_input: string | null;
   video_attempts: number;
+  video_error: string | null;
   created_at: string;
 }
 
@@ -171,7 +173,11 @@ export function incrementVideoAttempts(jobId: string): void {
 }
 
 export function resetVideoAttempts(jobId: string): void {
-  db.prepare('UPDATE jobs SET video_attempts = 0, video_b64 = NULL WHERE id = ?').run(jobId);
+  db.prepare('UPDATE jobs SET video_attempts = 0, video_b64 = NULL, video_error = NULL WHERE id = ?').run(jobId);
+}
+
+export function saveVideoError(jobId: string, message: string): void {
+  db.prepare("UPDATE jobs SET video_b64 = 'ERROR', video_error = ? WHERE id = ?").run(message.slice(0, 500), jobId);
 }
 
 export function logConsent(jobId: string, age: boolean, ownership: boolean, privacy: boolean, ipHash: string) {

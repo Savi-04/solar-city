@@ -36,6 +36,7 @@ import {
   setBuyerEmail,
   incrementVideoAttempts,
   resetVideoAttempts,
+  saveVideoError,
 } from "./src/db.ts";
 
 function escapeXml(s: string): string {
@@ -614,8 +615,9 @@ Style: Cinematic game trailer quality. Rich saturated color grade — warm amber
     const videoUrl: string | undefined = result?.data?.video?.url;
 
     if (!videoUrl) {
-      console.error("[video] Full Kling O3 response:", JSON.stringify(result?.data).slice(0, 500));
-      saveVideoOnly(jobId, "ERROR");
+      const detail = JSON.stringify(result?.data).slice(0, 400);
+      console.error("[video] Full Kling O3 response:", detail);
+      saveVideoError(jobId, `No video URL in Kling response: ${detail}`);
       throw new Error("No video URL in Kling O3 response");
     }
 
@@ -664,9 +666,9 @@ Style: Cinematic game trailer quality. Rich saturated color grade — warm amber
     saveVideoOnly(jobId, "DONE");
     } catch (err: any) {
       const detail = err?.body?.detail ? JSON.stringify(err.body.detail) : '';
-      console.error(`[video] generateCardVideo FAILED for ${jobId}:`, err?.message || err, detail ? `| detail: ${detail}` : '');
-      // Store error marker so the client stops polling and shows error state
-      saveVideoOnly(jobId, "ERROR");
+      const msg = `${err?.message || String(err)}${detail ? ` | detail: ${detail}` : ''}`;
+      console.error(`[video] generateCardVideo FAILED for ${jobId}:`, msg);
+      saveVideoError(jobId, msg);
       throw err;
     }
   }
@@ -910,7 +912,7 @@ Style: Cinematic game trailer quality. Rich saturated color grade — warm amber
       SELECT id, status, name_input, city_input, district, player_number, public_id, buyer_email,
              substr(created_at, 1, 16) as created_at,
              CASE WHEN complete_token IS NOT NULL THEN 1 ELSE 0 END as has_token,
-             video_b64, COALESCE(video_attempts, 0) as video_attempts
+             video_b64, COALESCE(video_attempts, 0) as video_attempts, video_error
       FROM jobs WHERE id != 'demo-card-v7' ORDER BY created_at DESC LIMIT 100
     `).all();
     return res.json(jobs);
@@ -1033,9 +1035,21 @@ Style: Cinematic game trailer quality. Rich saturated color grade — warm amber
       return res.status(429).json({ status: "limit_reached", message: "Video generation limit reached. Contact support." });
     }
 
-    // ERROR marker: generation failed previously — stop polling, show error to client
+    // ERROR state — auto-retry if attempts remain, else surface the error
     if (job.video_b64 === "ERROR") {
-      return res.status(500).json({ status: "error", message: "Video generation failed — click Retry" });
+      if (attempts >= VIDEO_MAX_ATTEMPTS) {
+        return res.status(429).json({ status: "limit_reached", message: "Video generation limit reached. Contact support." });
+      }
+      // Clear error and re-trigger automatically — user just keeps polling
+      saveVideoOnly(job.id, null as any);
+      if (job.status === "DONE" && job.bg_layer_b64 && !videoGenInProgress.has(job.id)) {
+        incrementVideoAttempts(job.id);
+        videoGenInProgress.add(job.id);
+        generateCardVideo(job.id)
+          .catch(e => console.error("[video] On-demand generation failed:", e))
+          .finally(() => videoGenInProgress.delete(job.id));
+      }
+      return res.status(202).json({ status: "generating", error: job.video_error });
     }
 
     try {

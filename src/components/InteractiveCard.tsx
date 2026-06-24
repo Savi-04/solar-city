@@ -160,16 +160,11 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     const publicId = id || jobId;
     const endpoint = `/api/public/${publicId}/video.mp4`;
 
-    // Clear any previous error state so server will retry generation
-    if (videoState === 'error') {
-      await fetch(`/api/public/${publicId}/video-reset`, { method: 'POST' }).catch(() => {});
-    }
-
     const tryDownload = async (): Promise<boolean> => {
       const res = await fetch(endpoint);
-      if (res.status === 202) return false; // still generating
-      if (res.status === 429) { setVideoState('limit'); return true; } // generation cap hit
-      if (!res.ok) throw new Error('request_failed');
+      if (res.status === 202) return false; // still generating (server auto-retries on error too)
+      if (res.status === 429) { setVideoState('limit'); return true; } // attempt cap hit
+      if (!res.ok) { setVideoState('error'); return true; } // unexpected — stop polling
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -183,24 +178,16 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       return true;
     };
 
-    try {
-      if (await tryDownload()) return;
-      // Poll every 5s while Seedance generates
-      videoPollRef.current = setInterval(async () => {
-        try {
-          if (await tryDownload()) {
-            clearInterval(videoPollRef.current!);
-            videoPollRef.current = null;
-          }
-        } catch {
-          clearInterval(videoPollRef.current!);
-          videoPollRef.current = null;
-          setVideoState('error');
-        }
-      }, 5000);
-    } catch {
-      setVideoState('error');
-    }
+    const done = await tryDownload();
+    if (done) return;
+
+    videoPollRef.current = setInterval(async () => {
+      const done = await tryDownload().catch(() => { setVideoState('error'); return true; });
+      if (done) {
+        clearInterval(videoPollRef.current!);
+        videoPollRef.current = null;
+      }
+    }, 5000);
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
