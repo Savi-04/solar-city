@@ -1,5 +1,7 @@
 import "dotenv/config";
 import express from "express";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import multer from "multer";
@@ -69,6 +71,10 @@ async function startServer() {
   });
 
   app.use(express.json({ limit: "50mb" }));
+  app.use(helmet({ contentSecurityPolicy: false }));
+
+  const uploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: "Too many requests, try again later" } });
+  const jobLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
 
   // API Routes
   app.get("/api/health", (req, res) => {
@@ -76,12 +82,23 @@ async function startServer() {
   });
 
   // Step A: Upload & Validate
-  app.post("/api/upload", async (req, res) => {
+  app.post("/api/upload", uploadLimiter, async (req, res) => {
     try {
       let { selfie_url, name, city, age_confirmed, ownership_confirmed, privacy_accepted } = req.body;
       if (!selfie_url) return res.status(400).json({ error: "No image provided" });
-      name = name || "UNKNOWN";
-      city = city || "UNKNOWN";
+
+      // SSRF guard — only allow fal.media CDN URLs
+      try {
+        const parsed = new URL(selfie_url);
+        const allowed = ["fal.media", "storage.fal.ai"];
+        if (!allowed.some(h => parsed.hostname === h || parsed.hostname.endsWith("." + h))) {
+          return res.status(400).json({ error: "Invalid image source" });
+        }
+      } catch {
+        return res.status(400).json({ error: "Invalid image URL" });
+      }
+      name = (name || "UNKNOWN").slice(0, 50);
+      city = (city || "UNKNOWN").slice(0, 50);
 
       if (!age_confirmed || !ownership_confirmed || !privacy_accepted) {
         return res.status(400).json({ error: "Consent required" });
@@ -89,7 +106,9 @@ async function startServer() {
 
       const jobId = crypto.randomUUID();
       const playerNumber = createJob(jobId, name, city);
-      logConsent(jobId, age_confirmed === "true", ownership_confirmed === "true", privacy_accepted === "true");
+      const rawIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
+      const ipHash = crypto.createHash("sha256").update(rawIp).digest("hex");
+      logConsent(jobId, age_confirmed === "true", ownership_confirmed === "true", privacy_accepted === "true", ipHash);
 
       // Fetch image from fal CDN for moderation (server-to-server, fast)
       let modResult = "ACCEPT";
@@ -129,9 +148,6 @@ async function startServer() {
     }
   });
 
-  let lastFalDebug: any = null;
-  app.get("/api/debug/fal", (_req, res) => res.json(lastFalDebug ?? { status: "no run yet" }));
-
   // Runs fully in background after upload responds
   async function buildCardInBackground(
     jobId: string, name: string, city: string,
@@ -152,21 +168,12 @@ async function startServer() {
       const outputUrl: string | undefined =
         result?.data?.images?.[0]?.url ?? result?.data?.image?.url;
 
-      lastFalDebug = {
-        requestId: result?.requestId,
-        outputUrl,
-        dataKeys: Object.keys(result?.data ?? {}),
-        images: result?.data?.images,
-        raw: JSON.stringify(result).slice(0, 2000),
-      };
-
       if (outputUrl) {
         const imgRes = await fetch(outputUrl);
         const arrayBuf = await imgRes.arrayBuffer();
         stylizedBase64 = Buffer.from(arrayBuf).toString("base64");
       }
     } catch (err: any) {
-      lastFalDebug = { error: err?.message, stack: err?.stack?.slice(0, 500) };
       console.error("Image stylization failed, falling back to original", err);
     }
 
@@ -453,7 +460,7 @@ async function startServer() {
   }
 
   // Endpoints to serve the layers
-  app.get("/api/jobs/:id/layers", (req, res) => {
+  app.get("/api/jobs/:id/layers", jobLimiter, (req, res) => {
     const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: "Not found" });
     if (!job.bg_layer_b64) return res.status(404).json({ error: "Layers not generated yet" });
@@ -467,7 +474,7 @@ async function startServer() {
   });
 
   ['bg', 'frame', 'portrait', 'text'].forEach(layer => {
-    app.get(`/api/jobs/:id/${layer}`, (req, res) => {
+    app.get(`/api/jobs/:id/${layer}`, jobLimiter, (req, res) => {
       const job = getJob(req.params.id);
       if (!job || !job[`${layer}_layer_b64`]) return res.status(404).send("Not found");
       const buffer = Buffer.from(job[`${layer}_layer_b64`], "base64");
@@ -500,8 +507,42 @@ async function startServer() {
   });
 
   
-  // Card delivery — marks job DONE immediately (free MVP, no payment/video capture)
+  // Gumroad post-payment redirect — called via the ?wanted= URL parameter on the overlay link.
+  // Marks the job DONE and redirects user to their card.
+  // Only accepts jobs in PREVIEW_READY status to prevent replaying against arbitrary UUIDs.
+  app.get("/api/gumroad/complete", (req: any, res: any) => {
+    const jobId = req.query.job_id as string | undefined;
+    if (!jobId) return res.redirect("/");
+
+    const job = getJob(jobId);
+    if (!job || job.status !== "PREVIEW_READY") {
+      // Already DONE (e.g. double-redirect) — just send them to the card
+      if (job?.status === "DONE") return res.redirect(`/card/${jobId}`);
+      return res.redirect("/");
+    }
+
+    updateJobStatus(jobId, "DONE");
+    res.redirect(`/card/${jobId}`);
+  });
+
+  // Gumroad account-level ping (fires for every sale) — used as belt-and-suspenders.
+  // Without custom fields we can't identify the specific job here, so just acknowledge.
+  app.post("/api/gumroad/webhook",
+    express.urlencoded({ extended: true }),
+    (req: any, res: any) => {
+      const sellerId = req.body.seller_id as string | undefined;
+      if (process.env.GUMROAD_SELLER_ID && sellerId !== process.env.GUMROAD_SELLER_ID) {
+        return res.status(403).json({ error: "Invalid seller" });
+      }
+      res.json({ ok: true });
+    }
+  );
+
+  // Dev-only checkout stub — disabled when GUMROAD_SELLER_ID is set (production)
   app.post("/api/checkout", async (req, res) => {
+    if (process.env.GUMROAD_SELLER_ID) {
+      return res.status(404).json({ error: "Not found" });
+    }
     const { jobId } = req.body;
     const job = getJob(jobId);
     if (!job) return res.status(404).json({ error: "Job not found" });
@@ -797,5 +838,20 @@ async function generateDemoCard() {
   updateJobStatus(DEMO_JOB_ID, "DONE");
   console.log("Demo card generated successfully.");
 }
+
+function runCleanup() {
+  db.prepare(`
+    UPDATE jobs SET
+      bg_layer_b64 = NULL, frame_layer_b64 = NULL,
+      portrait_layer_b64 = NULL, text_layer_b64 = NULL,
+      preview_base64 = NULL, unwatermarked_base64 = NULL
+    WHERE created_at < datetime('now', '-7 days')
+      AND (bg_layer_b64 IS NOT NULL OR preview_base64 IS NOT NULL)
+  `).run();
+  db.prepare(`DELETE FROM consent_log WHERE created_at < datetime('now', '-12 months')`).run();
+}
+
+runCleanup();
+setInterval(runCleanup, 24 * 60 * 60 * 1000);
 
 startServer().catch(console.error);

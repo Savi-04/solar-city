@@ -7,6 +7,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   const activeId = jobId || id;
   const [layers, setLayers] = useState<{ bg: string, frame: string, portrait: string, text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paymentPending, setPaymentPending] = useState(false);
   
   const cardRef = useRef<HTMLDivElement>(null);
   
@@ -83,15 +84,36 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
 
   useEffect(() => {
     if (!activeId) return;
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Fetch layers
-    fetch(`/api/jobs/${activeId}/layers`)
-      .then(res => {
+    const loadCard = async () => {
+      // In standalone mode, wait for payment to be confirmed before showing the card
+      if (standalone) {
+        while (!cancelled) {
+          try {
+            const res = await fetch(`/api/jobs/${activeId}`);
+            if (!res.ok) { setError("Card not found"); return; }
+            const data = await res.json();
+            if (data.status === "DONE") { setPaymentPending(false); break; }
+            setPaymentPending(true);
+          } catch { break; }
+          await new Promise<void>(r => { pollTimer = setTimeout(r, 3000); });
+        }
+        if (cancelled) return;
+      }
+
+      // Fetch layers
+      try {
+        const res = await fetch(`/api/jobs/${activeId}/layers`);
         if (!res.ok) throw new Error("Layers not ready yet or job not found");
-        return res.json();
-      })
-      .then(data => setLayers(data))
-      .catch(err => setError(err.message));
+        if (!cancelled) setLayers(await res.json());
+      } catch (err: any) {
+        if (!cancelled) setError(err.message);
+      }
+    };
+
+    loadCard();
 
     // Handle device orientation for mobile touch-tilt
     const handleOrientation = (e: DeviceOrientationEvent) => {
@@ -115,11 +137,13 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     }
     
     return () => {
+      cancelled = true;
+      if (pollTimer) clearTimeout(pollTimer);
       if (window.DeviceOrientationEvent) {
         window.removeEventListener('deviceorientation', handleOrientation);
       }
     };
-  }, [activeId, mouseX, mouseY]);
+  }, [activeId, mouseX, mouseY, standalone]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!cardRef.current) return;
@@ -144,6 +168,23 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       <div className="min-h-screen flex items-center justify-center font-mono text-sm"
         style={{ background: "#05050d", color: "rgba(255,80,80,0.8)" }}>
         {error}
+      </div>
+    );
+  }
+
+  if (paymentPending) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center space-y-3"
+        style={{ background: "#05050d" }}>
+        <div className="w-10 h-10 rounded-full border-2 animate-spin"
+          style={{ borderColor: "rgba(255,107,26,0.5)", borderTopColor: "transparent" }} />
+        <p className="font-mono text-[11px] tracking-[0.35em] uppercase"
+          style={{ color: "rgba(255,107,26,0.55)", animation: "blink 1.4s step-end infinite" }}>
+          Confirming Payment…
+        </p>
+        <p className="font-mono text-[9px] text-white/20 tracking-widest">
+          This page will update automatically
+        </p>
       </div>
     );
   }

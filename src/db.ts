@@ -120,7 +120,7 @@ export function getRegistryCount(): { issued: number; remaining: number } {
   return { issued: row.count, remaining: Math.max(0, 10000 - row.count) };
 }
 
-export function logConsent(jobId: string, age: boolean, ownership: boolean, privacy: boolean) {
-  db.prepare('INSERT INTO consent_log (job_id, age_confirmed, ownership_confirmed, privacy_accepted) VALUES (?, ?, ?, ?)')
-    .run(jobId, age ? 1 : 0, ownership ? 1 : 0, privacy ? 1 : 0);
+export function logConsent(jobId: string, age: boolean, ownership: boolean, privacy: boolean, ipHash: string) {
+  db.prepare('INSERT INTO consent_log (job_id, age_confirmed, ownership_confirmed, privacy_accepted, ip_hash) VALUES (?, ?, ?, ?, ?)')
+    .run(jobId, age ? 1 : 0, ownership ? 1 : 0, privacy ? 1 : 0, ipHash);
 }

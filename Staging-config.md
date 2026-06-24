@@ -63,6 +63,13 @@ DATA_DIR=/data
 
 # Optional — server port (defaults to 3000)
 PORT=3000
+
+# Required for production payments (Gumroad)
+# When GUMROAD_SELLER_ID is set, /api/checkout stub is disabled
+GUMROAD_SELLER_ID=your_gumroad_seller_id
+
+# Frontend — baked at build time (must set before npm run build)
+VITE_GUMROAD_PRODUCT_URL=https://yourname.gumroad.com/l/your-product-slug
 ```
 
 ### Where to get keys
@@ -71,6 +78,8 @@ PORT=3000
 |---|---|
 | `GEMINI_API_KEY` | https://aistudio.google.com/app/apikey |
 | `FAL_KEY` | https://fal.ai/dashboard → API Keys |
+| `GUMROAD_SELLER_ID` | Gumroad Dashboard → Settings → Profile → "Seller ID" |
+| `VITE_GUMROAD_PRODUCT_URL` | Gumroad product permalink URL (e.g. `https://yourname.gumroad.com/l/resident-id`) |
 
 ---
 
@@ -166,7 +175,6 @@ docker run -p 3000:3000 \
 | `GET /api/jobs/:id` | Poll job status |
 | `GET /api/jobs/:id/layers` | Get card layer images (base64) |
 | `GET /api/registry/count` | Issued card count |
-| `GET /api/debug/fal` | Last fal.ai model response (dev only) |
 | `GET /api/og-image` | OG meta image for link previews |
 | `USE /api/fal/proxy` | fal.ai proxy (keeps API key server-side) |
 

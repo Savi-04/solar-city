@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Loader2, Zap, Star, Shield, Link as LinkIcon } from "lucide-react";
 import { motion } from "motion/react";
 import InteractiveCard from "./InteractiveCard";
@@ -32,6 +32,16 @@ const FEATURES = [
 
 export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isProcessingPayment, playerNumber }: PreviewStepProps) {
   const [district, setDistrict] = useState<string | null>(null);
+  const gumroadRef = useRef<HTMLAnchorElement>(null);
+
+  const gumroadProductUrl = import.meta.env.VITE_GUMROAD_PRODUCT_URL as string | undefined;
+  const cardUrl = typeof window !== "undefined" ? `${window.location.origin}/card/${jobId}` : "";
+  const completeUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/api/gumroad/complete?job_id=${encodeURIComponent(jobId)}`
+    : "";
+  const gumroadHref = gumroadProductUrl
+    ? `${gumroadProductUrl}?wanted=${encodeURIComponent(completeUrl)}`
+    : undefined;
   const cardNum = playerNumber ? playerNumber.toString().padStart(4, "0") : null;
   const residentId = playerNumber !== null && playerNumber !== undefined
     ? `SC-${playerNumber.toString().padStart(8, "0")}`
@@ -136,9 +146,17 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
             ))}
           </div>
 
+          {/* Hidden Gumroad overlay trigger */}
+          {gumroadHref && (
+            <a ref={gumroadRef} href={gumroadHref} className="gumroad-button" style={{ display: "none" }} aria-hidden="true" />
+          )}
+
           {/* Pay button */}
           <motion.button
-            onClick={onPay}
+            onClick={() => {
+              if (gumroadHref) gumroadRef.current?.click();
+              onPay();
+            }}
             disabled={isProcessingPayment}
             whileHover={{ scale: isProcessingPayment ? 1 : 1.01 }}
             whileTap={{ scale: isProcessingPayment ? 1 : 0.99 }}
@@ -168,15 +186,15 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
                   className="font-black tracking-[0.18em] text-[15px]"
                   style={{ color: "#ff2060", textShadow: "0 0 12px rgba(255,32,96,0.45)" }}
                 >
-                  GET MY FREE CARD →
+                  GET MY CARD · $19.99 →
                 </span>
-                <span className="font-mono text-[10px] text-white/28 tracking-widest mt-1">Shareable link · yours to keep</span>
+                <span className="font-mono text-[10px] text-white/28 tracking-widest mt-1">One-time · Shareable link · Yours to keep</span>
               </span>
             )}
           </motion.button>
 
           <p className="font-mono text-[8px] text-center text-white/14 mt-3 tracking-wide">
-            Secure checkout · Powered by Stripe · Solara City Bureau of Residents
+            Secure checkout · Powered by Gumroad · Solara City Bureau of Residents
           </p>
 
         </div>

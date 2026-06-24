@@ -281,7 +281,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                 checked={privacyAccepted}
                 onChange={setPrivacyAccepted}
                 color="#ff2060"
-                label={<>I agree to the <a href="#" className="text-[#ff2060]/65 hover:text-[#ff2060] underline transition-colors">Terms & Privacy</a>. Facial data is not stored long-term.</>}
+                label={<>I agree to the{" "}<a href="/terms" target="_blank" rel="noreferrer" className="text-[#ff2060]/65 hover:text-[#ff2060] underline transition-colors">Terms</a>{" "}&amp;{" "}<a href="/privacy" target="_blank" rel="noreferrer" className="text-[#ff2060]/65 hover:text-[#ff2060] underline transition-colors">Privacy Policy</a>. Facial data is not stored long-term.</>}
               />
             </div>
 

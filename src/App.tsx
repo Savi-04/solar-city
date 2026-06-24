@@ -53,7 +53,7 @@ function MainFlow() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isProcessingPayment] = useState(false);
   const [playerNumber, setPlayerNumber] = useState<number | null>(null);
   const navigate = useNavigate();
 
@@ -122,23 +122,10 @@ function MainFlow() {
     }
   };
 
-  const handlePayBypass = async (currentJobId: string) => {
-    setIsProcessingPayment(true);
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: currentJobId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Checkout failed");
-      setAppState("RENDERING");
-    } catch (err: any) {
-      alert("Payment Error: " + err.message);
-      setAppState("UPLOAD");
-    } finally {
-      setIsProcessingPayment(false);
-    }
+  const handlePayBypass = () => {
+    // Gumroad overlay opens in PreviewStep; transition to RENDERING so polling
+    // continues while waiting for the Gumroad webhook to mark the job DONE.
+    setAppState("RENDERING");
   };
 
   return (
@@ -159,7 +146,7 @@ function MainFlow() {
         <PreviewStep
           jobId={jobId}
           previewUrl={previewUrl}
-          onPay={() => handlePayBypass(jobId)}
+          onPay={handlePayBypass}
           isProcessingPayment={isProcessingPayment}
           playerNumber={playerNumber}
         />

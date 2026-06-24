@@ -3,11 +3,11 @@ import { Download, Copy, Link, CheckCircle2, Cpu } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 const RENDER_LOGS = [
-  "Uploading to Vice Coast servers…",
-  "Running AI portrait stylization…",
+  "Awaiting payment confirmation…",
+  "Verifying transaction with Gumroad…",
   "Stamping registry seal…",
-  "Compositing neon frame layers…",
-  "Applying Miami heat palette…",
+  "Locking resident number…",
+  "Sealing holographic layers…",
   "Engraving player number…",
   "Finalizing holographic output…",
 ];
@@ -67,7 +67,7 @@ export function RenderStep({ jobId: _jobId }: { jobId: string }) {
               className="text-xl font-black tracking-[0.22em] text-transparent bg-clip-text glitch-text"
               style={{ backgroundImage: "linear-gradient(90deg, #ff2060, #ffb83c)" }}
             >
-              FORGING YOUR CARD
+              CONFIRMING PAYMENT
             </h2>
 
             <AnimatePresence mode="wait">
@@ -121,7 +121,7 @@ export function RenderStep({ jobId: _jobId }: { jobId: string }) {
           >
             <div className="flex items-center space-x-1.5 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-[#ff2060]" style={{ animation: "blink 1.2s step-end infinite" }} />
-              <span className="font-mono text-[8px] text-white/18 tracking-widest uppercase">Vice Coast Registry Log</span>
+              <span className="font-mono text-[8px] text-white/18 tracking-widest uppercase">Solara City Registry Log</span>
             </div>
             {RENDER_LOGS.slice(0, logIndex + 1)
               .slice(-3)
