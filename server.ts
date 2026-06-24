@@ -111,7 +111,7 @@ async function startServer() {
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: ["'self'", "https://open.er-api.com", "https://*.fal.run", "https://*.fal.ai"],
+        connectSrc: ["'self'", "https://open.er-api.com", "https://*.fal.run", "https://*.fal.ai", "https://fal.media", "https://*.fal.media"],
         frameSrc: ["'none'"],
       }
     }
