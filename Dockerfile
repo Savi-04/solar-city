@@ -1,7 +1,7 @@
 FROM node:20-bookworm-slim
 
 # Build tools for native modules (better-sqlite3)
-RUN apt-get update && apt-get install -y python3 make g++ \
+RUN apt-get update && apt-get install -y python3 make g++ ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

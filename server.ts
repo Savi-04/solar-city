@@ -13,6 +13,9 @@ import { Readable } from "stream";
 import { readFileSync, createReadStream } from "fs";
 import * as fsPromises from "fs/promises";
 import nodemailer from "nodemailer";
+import { exec } from "child_process";
+import { promisify } from "util";
+const execAsync = promisify(exec);
 
 fal.config({ credentials: process.env.FAL_KEY });
 const videoGenInProgress = new Set<string>(); // prevents double-charging
@@ -562,8 +565,8 @@ async function startServer() {
     console.log(`[video] card → ${cardUrl}`);
 
     // ── Call fal.ai Kling O3 Standard reference-to-video ────────────────────
-    // image_urls only (no elements) — portrait = @Image1, card = @Image2
-    const PROMPT = `Medium close-up shot, cinematic 2.39:1 aspect ratio. @Image1 stands still facing the camera in a dimly lit environment, holding @Image2 at chest height with both hands, tilted slightly toward camera.
+    // Only portrait as @Image1 — card is overlaid exactly via FFmpeg post-process
+    const PROMPT = `Medium close-up shot, cinematic 2.39:1 aspect ratio. @Image1 stands still facing the camera in a dimly lit environment, arms slightly raised to chest height, palms tilted slightly upward and toward camera as if presenting something.
 
 The subject's face, bone structure, skin texture, hair, and all physical features must remain pixel-identical to the reference — no redrawing, no beautification, no morphing. Only the lighting environment changes around them.
 
@@ -571,11 +574,11 @@ Lighting: Warm amber key light from upper left casting soft shadows across the f
 
 Background: A rain-soaked rooftop at golden hour dusk. Blurred city skyline with warm tungsten building lights in deep bokeh. Subtle heat haze rising from wet concrete. No neon signs. No holographic elements. No cyberpunk aesthetics. The mood is grounded, cinematic, and premium — like a Villeneuve or Fincher film.
 
-Environmental motion only: Wisps of warm steam drift slowly left to right behind the subject. Micro rain droplets catch the backlight and fall in ultra slow motion. The subject's hair and clothing react with barely perceptible wind physics. The card in their hands catches light and produces a subtle prismatic refraction flare as the camera drifts.
+Environmental motion only: Wisps of warm steam drift slowly left to right behind the subject. Micro rain droplets catch the backlight and fall in ultra slow motion. The subject's hair and clothing react with barely perceptible wind physics. A subtle prismatic refraction flare drifts across the lower frame as the camera moves.
 
 Camera: Extremely slow push-in dolly, moving no more than 5% closer over the full duration. Subtle vertical handheld drift to simulate anamorphic lens breathing. Cinematic depth of field with f/1.4 bokeh separation between subject and background.
 
-The subject does not speak, does not gesture, does not move their body. Eyes look directly into lens. Expression is calm, confident, neutral. Zero limb movement. Zero hand repositioning. The only motion in the entire frame comes from the environment, the light, and the camera.
+The subject does not speak, does not gesture, does not move their body. Eyes look directly into lens. Expression is calm, confident, neutral. Zero limb movement. The only motion in the entire frame comes from the environment, the light, and the camera.
 
 Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grain overlay, subtle teal-and-orange color grade. Masterpiece cinematography.`;
 
@@ -585,7 +588,7 @@ Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grai
       input: {
         prompt: PROMPT,
         negative_prompt: NEGATIVE_PROMPT,
-        image_urls: [portraitUrl, cardUrl],
+        image_urls: [portraitUrl],
         duration: "10",
         aspect_ratio: "9:16",
         generate_audio: false,
@@ -604,12 +607,48 @@ Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grai
       throw new Error("No video URL in Kling O3 response");
     }
 
+    // ── Download Kling video, then overlay the exact card via FFmpeg ──────────
     console.log(`[video] Downloading from ${videoUrl}`);
     const videoRes = await fetch(videoUrl);
     if (!videoRes.ok) throw new Error(`Failed to download video: ${videoRes.status}`);
     const videoBuf = Buffer.from(await videoRes.arrayBuffer());
-    await fsPromises.writeFile(videoPath, videoBuf);
-    console.log(`[video] Saved ${videoBuf.length} bytes → ${videoPath}`);
+
+    const rawVideoPath = videoPath.replace(".mp4", "_raw.mp4");
+    const cardJpegPath = videoPath.replace(".mp4", "_card.jpg");
+    await fsPromises.writeFile(rawVideoPath, videoBuf);
+    await fsPromises.writeFile(cardJpegPath, fullCardBuf);
+    console.log(`[video] Raw video saved (${videoBuf.length} bytes), compositing card...`);
+
+    try {
+      // Probe video dimensions to compute overlay position
+      const { stdout: probeOut } = await execAsync(
+        `ffprobe -v quiet -print_format json -show_streams "${rawVideoPath}"`
+      );
+      const vStream = JSON.parse(probeOut).streams?.find((s: any) => s.codec_type === "video");
+      const vW: number = vStream?.width ?? 1080;
+      const vH: number = vStream?.height ?? 1920;
+
+      // Card scaled to 42% of video width, centred horizontally, at 54% vertical
+      const cardW = Math.round(vW * 0.42);
+      const cardX = Math.round((vW - cardW) / 2);
+      const cardY = Math.round(vH * 0.54);
+
+      await execAsync(
+        `ffmpeg -y -i "${rawVideoPath}" -loop 1 -i "${cardJpegPath}" ` +
+        `-filter_complex "[1:v]scale=${cardW}:-1[card];[0:v][card]overlay=${cardX}:${cardY}:shortest=1" ` +
+        `-c:v libx264 -preset fast -crf 20 -c:a copy -movflags +faststart "${videoPath}"`
+      );
+      console.log(`[video] Card overlay applied → ${videoPath}`);
+    } catch (ffmpegErr: any) {
+      // FFmpeg failed — use raw Kling video as fallback
+      console.error("[video] FFmpeg overlay failed, using raw video:", ffmpegErr?.message);
+      await fsPromises.copyFile(rawVideoPath, videoPath);
+    } finally {
+      await fsPromises.unlink(rawVideoPath).catch(() => {});
+      await fsPromises.unlink(cardJpegPath).catch(() => {});
+    }
+
+    console.log(`[video] Done → ${videoPath}`);
     saveVideoOnly(jobId, "DONE");
     } catch (err: any) {
       const detail = err?.body?.detail ? JSON.stringify(err.body.detail) : '';
