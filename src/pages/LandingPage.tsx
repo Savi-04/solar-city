@@ -141,9 +141,20 @@ interface LeaderboardEntry {
   district: string;
 }
 
+const CARD_BORDER_COLORS = [
+  { border: "rgba(0,232,255,0.35)", glow: "rgba(0,232,255,0.12)", bg: "rgba(0,232,255,0.04)" },
+  { border: "rgba(255,32,96,0.35)",  glow: "rgba(255,32,96,0.12)",  bg: "rgba(255,32,96,0.04)" },
+  { border: "rgba(255,196,74,0.35)", glow: "rgba(255,196,74,0.12)", bg: "rgba(255,196,74,0.04)" },
+  { border: "rgba(0,255,127,0.35)",  glow: "rgba(0,255,127,0.12)",  bg: "rgba(0,255,127,0.04)" },
+  { border: "rgba(155,89,255,0.35)", glow: "rgba(155,89,255,0.12)", bg: "rgba(155,89,255,0.04)" },
+];
+
+const PAGE_SIZE = 5;
+
 function LeaderboardSection() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     const load = () => {
@@ -169,6 +180,9 @@ function LeaderboardSection() {
     );
   }
 
+  const totalPages = Math.ceil(entries.length / PAGE_SIZE);
+  const pageEntries = entries.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
   return (
     <section className="relative z-10 py-16 px-4">
       <div className="max-w-5xl mx-auto">
@@ -187,57 +201,99 @@ function LeaderboardSection() {
           <p className="font-mono text-[10px] text-white/25 mt-1 tracking-widest">First allocated · Lowest numbers rarest</p>
         </motion.div>
 
-        <div
-          className="flex space-x-4 overflow-x-auto pb-4"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {entries.map((entry, i) => (
-            <motion.a
-              key={entry.public_id}
-              href={`/id/${entry.public_id}`}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: Math.min(i * 0.05, 0.4) }}
-              className="shrink-0 flex flex-col items-center group cursor-pointer"
-              style={{ width: "140px" }}
-            >
-              <div
-                className="relative w-[140px] rounded-xl overflow-hidden transition-all duration-300 group-hover:scale-105"
-                style={{
-                  height: "187px",
-                  boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 4px 20px rgba(0,0,0,0.5)",
-                }}
-              >
-                <img
-                  src={`/api/public/${entry.public_id}/thumb`}
-                  alt={`${entry.name}'s card`}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-                <div
-                  className="absolute top-2 left-2 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded"
-                  style={{
-                    background: "rgba(0,0,0,0.65)",
-                    border: "1px solid rgba(255,196,74,0.4)",
-                    color: "#ffc94a",
-                    backdropFilter: "blur(4px)",
-                  }}
+        {/* Cards grid */}
+        <div className="flex justify-center flex-wrap gap-4 pb-2">
+          <AnimatePresence mode="wait">
+            {pageEntries.map((entry, i) => {
+              const colorScheme = CARD_BORDER_COLORS[entry.player_number % CARD_BORDER_COLORS.length];
+              const floatDuration = `${2.8 + (entry.player_number % 4) * 0.4}s`;
+              const floatDelay = `${(entry.player_number % 5) * 0.3}s`;
+              return (
+                <motion.div
+                  key={`${entry.public_id}-${page}`}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ delay: i * 0.06, duration: 0.35 }}
+                  className="flex flex-col items-center"
+                  style={{ width: "140px" }}
                 >
-                  #{entry.player_number.toString().padStart(4, "0")}
-                </div>
-                <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ background: "linear-gradient(135deg, rgba(255,32,96,0.08), rgba(0,232,255,0.06))" }}
-                />
-              </div>
-              <div className="mt-2.5 text-center space-y-0.5 w-full px-1">
-                <p className="font-mono text-[10px] font-bold text-white/70 tracking-wider truncate uppercase">{entry.name}</p>
-                <p className="font-mono text-[9px] text-white/30 tracking-widest truncate uppercase">{entry.city}</p>
-              </div>
-            </motion.a>
-          ))}
+                  {/* Card */}
+                  <div
+                    className="relative w-[140px] rounded-xl overflow-hidden flex flex-col items-center justify-center"
+                    style={{
+                      height: "190px",
+                      background: `linear-gradient(160deg, ${colorScheme.bg} 0%, rgba(0,0,0,0.5) 100%)`,
+                      border: `1px solid ${colorScheme.border}`,
+                      boxShadow: `0 0 18px ${colorScheme.glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
+                    }}
+                  >
+                    {/* Resident number badge */}
+                    <div
+                      className="absolute top-2 left-2 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded z-10"
+                      style={{
+                        background: "rgba(0,0,0,0.65)",
+                        border: "1px solid rgba(255,196,74,0.4)",
+                        color: "#ffc94a",
+                        backdropFilter: "blur(4px)",
+                      }}
+                    >
+                      #{entry.player_number.toString().padStart(4, "0")}
+                    </div>
+
+                    {/* Animated character */}
+                    <div
+                      style={{
+                        animation: `char-float ${floatDuration} ${floatDelay} ease-in-out infinite`,
+                        width: "90px",
+                        height: "90px",
+                      }}
+                    >
+                      <img
+                        src={`https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${entry.player_number}&backgroundColor=transparent`}
+                        alt=""
+                        width={90}
+                        height={90}
+                        style={{ imageRendering: "crisp-edges" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Name + city */}
+                  <div className="mt-2.5 text-center space-y-0.5 w-full px-1">
+                    <p className="font-mono text-[10px] font-bold text-white/70 tracking-wider truncate uppercase">{entry.name}</p>
+                    <p className="font-mono text-[9px] text-white/30 tracking-widest truncate uppercase">{entry.city}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-6 mt-8">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="font-mono text-[10px] tracking-[0.25em] uppercase transition-colors disabled:opacity-20"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+            >
+              ← Prev
+            </button>
+            <span className="font-mono text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>
+              {String(page + 1).padStart(2, "0")} / {String(totalPages).padStart(2, "0")}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={page === totalPages - 1}
+              className="font-mono text-[10px] tracking-[0.25em] uppercase transition-colors disabled:opacity-20"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+            >
+              Next →
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

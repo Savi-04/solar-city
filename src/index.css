@@ -98,6 +98,11 @@
   100% { transform: scale(1) translateY(0); }
 }
 
+@keyframes char-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
 /* ──────────────────────── Global ──────────────────────── */
 
 *, *::before, *::after { box-sizing: border-box; }
