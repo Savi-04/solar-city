@@ -724,6 +724,66 @@ async function startServer() {
     return res.json({ ok: true, public_id: publicId, card_url: `/id/${publicId}` });
   });
 
+  // Admin: list all jobs (excluding demo-card) for debugging
+  app.get("/api/admin/jobs", (req: any, res: any) => {
+    const secret = req.headers["x-admin-secret"] as string | undefined;
+    if (!secret || secret !== process.env.ADMIN_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const jobs = db.prepare(`
+      SELECT id, status, name_input, city_input, district, player_number, public_id, buyer_email,
+             substr(created_at, 1, 16) as created_at,
+             CASE WHEN complete_token IS NOT NULL THEN 1 ELSE 0 END as has_token
+      FROM jobs WHERE id != 'demo-card-v7' ORDER BY created_at DESC LIMIT 100
+    `).all();
+    return res.json(jobs);
+  });
+
+  // Admin: trigger Gumroad sync immediately using a token from the request body.
+  // This lets you rescue stuck jobs without setting the GUMROAD_ACCESS_TOKEN env var.
+  app.post("/api/admin/gumroad-sync", express.json(), async (req: any, res: any) => {
+    const secret = req.headers["x-admin-secret"] as string | undefined;
+    if (!secret || secret !== process.env.ADMIN_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const token = (req.body.access_token as string | undefined) || process.env.GUMROAD_ACCESS_TOKEN;
+    if (!token) return res.status(400).json({ error: "Provide access_token in body or set GUMROAD_ACCESS_TOKEN env var" });
+
+    try {
+      const r = await fetch(`https://api.gumroad.com/v2/sales?access_token=${token}&after=2025-01-01`);
+      const data = await r.json() as any;
+      if (!data.success) return res.status(502).json({ error: "Gumroad API error", detail: data });
+
+      const rescued: any[] = [];
+      const skipped: any[] = [];
+      for (const sale of (data.sales as any[])) {
+        const wantedUrl = sale.url_params?.wanted as string | undefined;
+        const saleInfo = { email: sale.email, created_at: sale.created_at, sale_id: sale.id };
+        if (!wantedUrl) { skipped.push({ ...saleInfo, reason: "no url_params.wanted" }); continue; }
+        try {
+          const parsed = new URL(wantedUrl);
+          const jobId = parsed.searchParams.get("job_id");
+          const tok = parsed.searchParams.get("token");
+          if (!jobId || !tok) { skipped.push({ ...saleInfo, reason: "no job_id/token in wanted url" }); continue; }
+          const job = getJob(jobId);
+          if (!job) { skipped.push({ ...saleInfo, job_id: jobId, reason: "job not found in DB" }); continue; }
+          if (job.status === "DONE") { skipped.push({ ...saleInfo, job_id: jobId, reason: "already DONE", public_id: job.public_id }); continue; }
+          if (job.complete_token !== tok) { skipped.push({ ...saleInfo, job_id: jobId, reason: "token mismatch" }); continue; }
+          updateJobStatus(jobId, "DONE");
+          const publicId = generatePublicId();
+          setPublicId(jobId, publicId);
+          if (sale.email) setBuyerEmail(jobId, sale.email);
+          console.log(`Admin gumroad-sync: rescued job ${jobId} (${sale.email}) → /id/${publicId}`);
+          rescued.push({ ...saleInfo, job_id: jobId, public_id: publicId, card_url: `/id/${publicId}` });
+        } catch { skipped.push({ ...saleInfo, reason: "parse error" }); }
+      }
+
+      return res.json({ ok: true, total_sales: data.sales.length, rescued: rescued.length, rescued_details: rescued, skipped });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // Dev-only checkout stub — disabled when GUMROAD_SELLER_ID is set (production)
   app.post("/api/checkout", async (req, res) => {
     if (process.env.GUMROAD_SELLER_ID) {
