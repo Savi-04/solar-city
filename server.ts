@@ -578,23 +578,23 @@ async function startServer() {
 
     // ── Call fal.ai Kling O3 Standard reference-to-video ────────────────────
     // Only portrait as @Image1 — card is overlaid exactly via FFmpeg post-process
-    const PROMPT = `Medium close-up shot, cinematic 2.39:1 aspect ratio. @Image1 stands still facing the camera in a dimly lit environment, arms slightly raised to chest height, palms tilted slightly upward and toward camera as if presenting something.
+    const PROMPT = `Full-body wide shot, vertical 9:16 frame. @Image1 stands 4 to 5 meters from the camera — the entire body is visible from shoes to slightly above the head. The subject occupies roughly 55 percent of the frame height. Significant environment is visible above the head, below the feet, and on both sides.
 
-The subject's face, bone structure, skin texture, hair, and all physical features must remain pixel-identical to the reference — no redrawing, no beautification, no morphing. Only the lighting environment changes around them.
+POSE — locked throughout the entire clip: Both arms extended forward at chest height, elbows slightly bent, both hands flat and open facing upward, presenting something outward toward the camera like offering a prize or displaying an earned achievement. The card rests across the open palms. Head held high, chin slightly lifted. Expression: quiet pride and confidence — the look of someone who earned something significant. Chest out, feet shoulder-width apart in a power stance. This pose does not change at any point during the video. Arms stay extended forward the entire duration.
 
-Lighting: Warm amber key light from upper left casting soft shadows across the face. Cool steel-blue fill light from lower right. A single thin volumetric light shaft cuts diagonally through the background haze behind the subject's shoulder.
+The subject's face, bone structure, skin texture, hair, and all physical features must remain pixel-identical to the reference. No redrawing, no beautification, no morphing.
 
-Background: A rain-soaked rooftop at golden hour dusk. Blurred city skyline with warm tungsten building lights in deep bokeh. Subtle heat haze rising from wet concrete. No neon signs. No holographic elements. No cyberpunk aesthetics. The mood is grounded, cinematic, and premium — like a Villeneuve or Fincher film.
+BACKGROUND — game cinematic achievement world: A vast open-air observation platform at the very top of a massive futuristic skyscraper. The platform has a clean stone or polished concrete floor. Beyond the railing edge, a sprawling modern metropolis stretches to the horizon in every direction — dense city grid, towers of varying heights, bridges, rivers catching evening light. The sky is at the magic hour transition: deep electric blue overhead fading to warm amber and burnt orange near the horizon. Dramatic volumetric god rays cut down through scattered clouds from upper left, catching atmospheric haze and dust. Distant city lights are just beginning to flicker on. No neon signs. No holographic UI. No cyberpunk elements. The aesthetic is premium open-world game — grand scale, earned, powerful.
 
-Environmental motion only: Wisps of warm steam drift slowly left to right behind the subject. Micro rain droplets catch the backlight and fall in ultra slow motion. The subject's hair and clothing react with barely perceptible wind physics. A subtle prismatic refraction flare drifts across the lower frame as the camera moves.
+LIGHTING: A warm golden rim light from upper-left behind the subject, creating a hero glow along the shoulder and side of the head. Soft front fill keeps the face clearly lit. The subject's outstretched hands and the space between them are lit as if catching the golden hour light — inviting focus.
 
-Camera: Extremely slow push-in dolly, moving no more than 5% closer over the full duration. Subtle vertical handheld drift to simulate anamorphic lens breathing. Cinematic depth of field with f/1.4 bokeh separation between subject and background.
+CAMERA: Slow low-angle crane drift — starting from slightly below eye level angled slightly upward (making the subject look powerful against the sky), gradually leveling to eye height over the clip. Subtle horizontal drift of no more than 3 percent frame width. The background city moves slowly in parallax. Cinematic depth of field: subject sharp, background in beautiful layered bokeh.
 
-The subject does not speak, does not gesture, does not move their body. Eyes look directly into lens. Expression is calm, confident, neutral. Zero limb movement. The only motion in the entire frame comes from the environment, the light, and the camera.
+MOTION — environment only: A steady warm wind moves the subject's hair and clothing throughout. Distant birds or aircraft cross the far background. Clouds shift imperceptibly. The subject's arms and hands do not move. No speaking. No gesturing. No repositioning. The only body motion is natural clothing and hair physics from wind.
 
-Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grain overlay, subtle teal-and-orange color grade. Masterpiece cinematography.`;
+Style: Cinematic game trailer quality. Rich saturated color grade — warm ambers, deep blues, golden highlights. Slight film grain. Lens flare streak from the rim light source. Epic in scale, intimate in face. This is the moment of having arrived.`;
 
-    const NEGATIVE_PROMPT = `morphing, warping, extra limbs, extra fingers, face distortion, face change, beautification, cartoonish, anime, neon signs, cyberpunk neon, holographic overlays, rapid movement, flickering, stuttering, body movement, talking, gesturing`;
+    const NEGATIVE_PROMPT = `morphing, warping, extra limbs, extra fingers, face distortion, face change, beautification, cartoonish, anime, neon signs, cyberpunk neon, holographic overlays, rapid movement, flickering, stuttering, talking, arms at sides, empty hands, closed fists, medium close-up, tight crop, face filling frame, walking, running, head turning`;
 
     const result = await fal.subscribe("fal-ai/kling-video/o3/standard/reference-to-video", {
       input: {
@@ -641,9 +641,9 @@ Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grai
       const vH: number = vStream?.height ?? 1920;
 
       // Card scaled to 42% of video width, centred horizontally, at 54% vertical
-      const cardW = Math.round(vW * 0.42);
+      const cardW = Math.round(vW * 0.38);
       const cardX = Math.round((vW - cardW) / 2);
-      const cardY = Math.round(vH * 0.54);
+      const cardY = Math.round(vH * 0.42);
 
       await execAsync(
         `ffmpeg -y -i "${rawVideoPath}" -loop 1 -i "${cardJpegPath}" ` +
