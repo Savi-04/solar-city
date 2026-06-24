@@ -528,99 +528,31 @@ async function startServer() {
     console.log(`[video] Starting Seedance generation for ${jobId}`);
 
     // ── Build 1080×1920 starting frame ──────────────────────────────────────
-    function buildParticlesSvg(): string {
-      const colors = ['#00e8ff', '#ff0088', '#ff6b1a', '#9b59ff', '#00ff7f'];
-      const pts: [number, number, number, number][] = [
-        [87,145,1.0,0],[234,280,1.5,1],[456,180,0.8,2],[678,320,1.2,3],
-        [145,450,1.0,4],[890,200,1.5,0],[320,600,0.8,1],[560,520,1.2,2],
-        [780,410,1.0,3],[60,750,1.5,4],[980,680,0.8,0],[430,820,1.2,1],
-        [180,900,1.0,2],[720,780,1.5,3],[340,1050,0.8,4],[850,950,1.2,0],
-        [500,1100,1.0,1],[100,1200,1.5,2],[770,1150,0.8,3],[280,1280,1.2,4],
-        [620,1220,1.0,0],[940,1100,1.5,1],[160,1350,0.8,2],[480,1330,1.2,3],
-        [800,1300,1.0,4],[380,350,1.5,0],[700,480,0.8,1],[200,680,1.2,2],
-        [1020,450,1.0,3],[50,580,1.5,4],
-      ];
-      return pts.map(([x,y,r,ci]) =>
-        `<circle cx="${x}" cy="${y}" r="${r}" fill="${colors[ci]}" opacity="${(0.2 + r * 0.08).toFixed(2)}"/>`
-      ).join('\n  ');
-    }
-
-    const bgSvg = `<svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <radialGradient id="g1" cx="50%" cy="30%" r="55%">
-      <stop offset="0%" stop-color="#00e8ff" stop-opacity="0.11"/>
-      <stop offset="100%" stop-color="#03030b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="g2" cx="70%" cy="85%" r="45%">
-      <stop offset="0%" stop-color="#ff6b1a" stop-opacity="0.09"/>
-      <stop offset="100%" stop-color="#03030b" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="g3" cx="8%" cy="55%" r="38%">
-      <stop offset="0%" stop-color="#ff0088" stop-opacity="0.07"/>
-      <stop offset="100%" stop-color="#03030b" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1080" height="1920" fill="#03030b"/>
-  <rect width="1080" height="1920" fill="url(#g1)"/>
-  <rect width="1080" height="1920" fill="url(#g2)"/>
-  <rect width="1080" height="1920" fill="url(#g3)"/>
-  <!-- city silhouettes -->
-  <rect x="-10" y="1550" width="90" height="380" fill="#050510"/>
-  <rect x="70" y="1480" width="55" height="450" fill="#060614"/>
-  <rect x="110" y="1530" width="75" height="400" fill="#04040e"/>
-  <rect x="175" y="1510" width="45" height="420" fill="#070717"/>
-  <rect x="205" y="1440" width="90" height="490" fill="#060613"/>
-  <rect x="280" y="1560" width="60" height="370" fill="#050510"/>
-  <rect x="330" y="1500" width="40" height="430" fill="#080818"/>
-  <rect x="360" y="1580" width="110" height="350" fill="#04040d"/>
-  <rect x="460" y="1520" width="70" height="410" fill="#060615"/>
-  <rect x="520" y="1460" width="50" height="470" fill="#050511"/>
-  <rect x="555" y="1540" width="85" height="390" fill="#070716"/>
-  <rect x="630" y="1490" width="65" height="440" fill="#060614"/>
-  <rect x="685" y="1550" width="45" height="380" fill="#04040e"/>
-  <rect x="720" y="1470" width="80" height="460" fill="#080818"/>
-  <rect x="790" y="1530" width="60" height="400" fill="#050512"/>
-  <rect x="840" y="1500" width="95" height="430" fill="#060616"/>
-  <rect x="925" y="1520" width="55" height="410" fill="#04040d"/>
-  <rect x="970" y="1560" width="120" height="370" fill="#070715"/>
-  <!-- neon windows -->
-  <rect x="80" y="1490" width="3" height="2" fill="#00e8ff" opacity="0.7"/>
-  <rect x="120" y="1540" width="2" height="3" fill="#ff6b1a" opacity="0.6"/>
-  <rect x="220" y="1455" width="4" height="2" fill="#ff0088" opacity="0.5"/>
-  <rect x="295" y="1565" width="3" height="2" fill="#9b59ff" opacity="0.5"/>
-  <rect x="415" y="1570" width="3" height="2" fill="#ff6b1a" opacity="0.6"/>
-  <rect x="565" y="1545" width="4" height="2" fill="#ff0088" opacity="0.4"/>
-  <rect x="650" y="1500" width="3" height="2" fill="#9b59ff" opacity="0.5"/>
-  <rect x="745" y="1510" width="3" height="2" fill="#00e8ff" opacity="0.7"/>
-  <rect x="855" y="1515" width="4" height="2" fill="#00e8ff" opacity="0.4"/>
-  <rect x="940" y="1530" width="3" height="2" fill="#ff6b1a" opacity="0.5"/>
-  <!-- horizon glow -->
-  <rect x="0" y="1440" width="1080" height="1" fill="rgba(0,232,255,0.18)"/>
-  <!-- particles -->
-  ${buildParticlesSvg()}
-</svg>`;
-
     const BASE_W = 1080, BASE_H = 1920;
 
-    // Force to exact frame dimensions — Railway's librsvg may render at a different DPI
-    const bgBuffer = await sharp(Buffer.from(bgSvg))
-      .resize(BASE_W, BASE_H, { fit: "fill" })
-      .png()
-      .toBuffer();
+    // Guaranteed-size canvas via Sharp create — no SVG rendering, no DPI surprises
+    const bgBuffer = await sharp({
+      create: { width: BASE_W, height: BASE_H, channels: 4, background: { r: 3, g: 3, b: 11, alpha: 255 } },
+    }).png().toBuffer();
 
-    // Extract the stylized portrait face (520×600 at position 140,100 in the layer)
+    // Extract the stylized portrait face (520×600 at position 140,100 in the 800×1066 layer)
     const portraitFaceBuffer = await sharp(Buffer.from(job.portrait_layer_b64, "base64"))
       .extract({ left: 140, top: 100, width: 520, height: 600 })
       .resize(560, 646, { fit: "fill" })
       .png()
       .toBuffer();
 
-    // Full card composite, scaled + rotated slightly
-    const cardComposite = await sharp(Buffer.from(job.bg_layer_b64, "base64"))
+    // Full card composite — ensure all layers match bg dimensions before compositing
+    const bgLayerBuf = Buffer.from(job.bg_layer_b64, "base64");
+    const { width: layerW = 800, height: layerH = 1066 } = await sharp(bgLayerBuf).metadata();
+    const ensureLayerSize = async (b64: string) =>
+      sharp(Buffer.from(b64, "base64")).resize(layerW, layerH, { fit: "fill" }).png().toBuffer();
+
+    const cardComposite = await sharp(bgLayerBuf)
       .composite([
-        { input: Buffer.from(job.portrait_layer_b64, "base64") },
-        { input: Buffer.from(job.frame_layer_b64, "base64") },
-        { input: Buffer.from(job.text_layer_b64, "base64") },
+        { input: await ensureLayerSize(job.portrait_layer_b64) },
+        { input: await ensureLayerSize(job.frame_layer_b64) },
+        { input: await ensureLayerSize(job.text_layer_b64) },
       ])
       .resize(360, 480)
       .rotate(-6, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -630,25 +562,14 @@ async function startServer() {
     const { width: cardW = 408, height: cardH = 515 } = await sharp(cardComposite).metadata();
     const portraitLeft = Math.round((BASE_W - 560) / 2); // 260
     const portraitTop = 55;
-    const portraitBottom = portraitTop + 646; // 701
     const cardLeft = Math.max(0, Math.round((BASE_W - cardW) / 2));
     const cardTop = 760;
 
-    // Pre-render lanyard SVG to exact frame dimensions (passing raw SVG string to
-    // composite is unreliable — Sharp may render it at a different size)
-    const lanyardSvg = `<svg width="${BASE_W}" height="${BASE_H}" xmlns="http://www.w3.org/2000/svg">
-  <line x1="540" y1="${portraitBottom}" x2="540" y2="${cardTop + 8}"
-        stroke="rgba(210,215,230,0.50)" stroke-width="1.5" stroke-dasharray="4,3"/>
-</svg>`;
-    const lanyardBuffer = await sharp(Buffer.from(lanyardSvg))
-      .resize(BASE_W, BASE_H, { fit: "fill" })
-      .png()
-      .toBuffer();
+    console.log(`[video] frame dims — bg:${BASE_W}×${BASE_H} portrait:560×646@${portraitLeft},${portraitTop} card:${cardW}×${cardH}@${cardLeft},${cardTop}`);
 
     const startingFrame = await sharp(bgBuffer)
       .composite([
         { input: portraitFaceBuffer, top: portraitTop, left: portraitLeft },
-        { input: lanyardBuffer, top: 0, left: 0 },
         { input: cardComposite, top: cardTop, left: cardLeft },
       ])
       .jpeg({ quality: 95 })
