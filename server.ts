@@ -834,7 +834,7 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     const indexHtml = readFileSync(path.join(distPath, "index.html"), "utf8");
     app.use(express.static(distPath));
-    app.get("*all", (req, res) => {
+    app.get("*", (req, res) => {
       const base = `${req.protocol}://${req.get("host")}`;
       const html = indexHtml.replace(
         "</head>",
@@ -858,6 +858,7 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`DB: ${process.env.DATA_DIR ? process.env.DATA_DIR + '/jobs.db (persistent volume ✓)' : 'jobs.db (local — set DATA_DIR=/data for persistence)'}`);
     // Generate demo card in background on startup (non-blocking)
     generateDemoCard().catch((e) => console.error("Demo card gen failed:", e));
   });

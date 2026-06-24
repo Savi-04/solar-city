@@ -9,6 +9,7 @@ import LandingPage from "./pages/LandingPage";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import AdminPaidUsers from "./pages/AdminPaidUsers";
+import PaymentConfirmingOverlay from "./components/PaymentConfirmingOverlay";
 
 type AppState = "UPLOAD" | "PREVIEW" | "RENDERING" | "SUCCESS";
 
@@ -140,6 +141,13 @@ function MainFlow() {
     if (appState === 'SUCCESS') localStorage.removeItem('solarPendingJob');
   }, [appState]);
 
+  // Auto-navigate to card 2.5s after SUCCESS (button still visible for impatient users)
+  useEffect(() => {
+    if (appState !== 'SUCCESS' || !publicId) return;
+    const t = setTimeout(() => navigate(`/id/${publicId}`), 2500);
+    return () => clearTimeout(t);
+  }, [appState, publicId, navigate]);
+
   // Rehydrate RENDERING state on mount if a pending job exists in localStorage
   useEffect(() => {
     const raw = localStorage.getItem('solarPendingJob');
@@ -269,39 +277,22 @@ function MainFlow() {
 }
 
 export default function App() {
-  // On any page load, check if there's a paid-but-undelivered job in localStorage.
-  // If the job is now DONE (webhook fired while user was on Gumroad), navigate to the card.
-  useEffect(() => {
-    const raw = localStorage.getItem('solarPendingJob');
-    if (!raw) return;
-    try {
-      const { jobId } = JSON.parse(raw);
-      if (!jobId) return;
-      fetch(`/api/jobs/${jobId}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === 'DONE' && data.public_id) {
-            localStorage.removeItem('solarPendingJob');
-            if (!window.location.pathname.startsWith('/id/')) {
-              window.location.href = `/id/${data.public_id}`;
-            }
-          }
-          // If still processing, MainFlow rehydration (above) handles it when user visits /create
-        })
-        .catch(() => {});
-    } catch { localStorage.removeItem('solarPendingJob'); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Show the full-screen payment-confirming overlay whenever localStorage has a pending job.
+  // The overlay polls every 5s and redirects to the card as soon as the webhook marks it DONE.
+  const [hasPending, setHasPending] = useState(() => !!localStorage.getItem('solarPendingJob'));
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/create" element={<MainFlow />} />
-      <Route path="/id/:id" element={<InteractiveCard />} />
-      <Route path="/privacy" element={<Privacy />} />
-      <Route path="/terms" element={<Terms />} />
-      <Route path="/paid-users" element={<AdminPaidUsers />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      {hasPending && <PaymentConfirmingOverlay onClear={() => setHasPending(false)} />}
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/create" element={<MainFlow />} />
+        <Route path="/id/:id" element={<InteractiveCard />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/paid-users" element={<AdminPaidUsers />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
