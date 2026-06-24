@@ -34,7 +34,15 @@ import {
   getJobByPublicId,
   getLeaderboard,
   setBuyerEmail,
+  incrementVideoAttempts,
+  resetVideoAttempts,
 } from "./src/db.ts";
+
+function escapeXml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+const SAFE_TEXT_RE = /^[^<>&"'`]+$/;
 
 function sendCardEmail(to: string, cardUrl: string): Promise<void> {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -145,9 +153,13 @@ async function startServer() {
       } catch {
         return res.status(400).json({ error: "Invalid image URL" });
       }
-      name = (name || "UNKNOWN").slice(0, 50);
-      city = (city || "UNKNOWN").slice(0, 50);
-      skill = (skill || "CITIZEN").slice(0, 30);
+      name = (name || "UNKNOWN").slice(0, 50).trim();
+      city = (city || "UNKNOWN").slice(0, 50).trim();
+      skill = (skill || "CITIZEN").slice(0, 30).trim();
+
+      if (!SAFE_TEXT_RE.test(name) || !SAFE_TEXT_RE.test(city) || !SAFE_TEXT_RE.test(skill)) {
+        return res.status(400).json({ error: "Name, city, and skill must not contain special characters (< > & \" ')" });
+      }
 
       if (!age_confirmed || !ownership_confirmed || !privacy_accepted) {
         return res.status(400).json({ error: "Consent required" });
@@ -441,27 +453,27 @@ async function startServer() {
         <!-- Name: bold, chrome -->
         <text x="20" y="383"
           fill="#e8f4f8" font-family="Impact,'Arial Black',sans-serif"
-          font-size="${nameFontSize}" font-weight="900" letter-spacing="${nameLetterSpacing}">${name.toUpperCase()}</text>
+          font-size="${nameFontSize}" font-weight="900" letter-spacing="${nameLetterSpacing}">${escapeXml(name.toUpperCase())}</text>
 
         <!-- City: smaller, muted teal -->
         <text x="20" y="397"
           fill="#4a6b7a" font-family="Arial,sans-serif"
-          font-size="10.5" letter-spacing="2">${city.toUpperCase()}</text>
+          font-size="10.5" letter-spacing="2">${escapeXml(city.toUpperCase())}</text>
 
         <!-- RESIDENT ID value -->
         <text x="135" y="430"
           fill="#e8f4f8" font-family="'Courier New',monospace"
-          font-size="7" letter-spacing="1" opacity="0.82">${residentId}</text>
+          font-size="7" letter-spacing="1" opacity="0.82">${escapeXml(residentId)}</text>
 
         <!-- DISTRICT value -->
         <text x="135" y="444"
           fill="#e8f4f8" font-family="'Courier New',monospace"
-          font-size="7" letter-spacing="1" opacity="0.82">${district}</text>
+          font-size="7" letter-spacing="1" opacity="0.82">${escapeXml(district)}</text>
 
         <!-- SKILL value -->
         <text x="135" y="458"
           fill="#b8ff3c" font-family="'Courier New',monospace"
-          font-size="7" letter-spacing="1">${skill.toUpperCase()}</text>
+          font-size="7" letter-spacing="1">${escapeXml(skill.toUpperCase())}</text>
 
         <!-- ISSUED value -->
         <text x="135" y="472"
@@ -898,7 +910,7 @@ Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grai
       SELECT id, status, name_input, city_input, district, player_number, public_id, buyer_email,
              substr(created_at, 1, 16) as created_at,
              CASE WHEN complete_token IS NOT NULL THEN 1 ELSE 0 END as has_token,
-             video_b64
+             video_b64, COALESCE(video_attempts, 0) as video_attempts
       FROM jobs WHERE id != 'demo-card-v7' ORDER BY created_at DESC LIMIT 100
     `).all();
     return res.json(jobs);
@@ -974,6 +986,16 @@ Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grai
     res.json({ ok: true });
   });
 
+  // Admin: unlock video generation for a card (resets attempt counter + error state)
+  app.post("/api/admin/video-unlock/:publicId", (req: any, res: any) => {
+    const secret = req.headers["x-admin-secret"] as string | undefined;
+    if (!secret || secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Forbidden" });
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job) return res.status(404).json({ error: "Not found" });
+    resetVideoAttempts(job.id);
+    res.json({ ok: true, message: "Video attempts reset to 0" });
+  });
+
   // Full-resolution card JPEG for OG meta tag images (800×1066)
   app.get("/api/public/:publicId/og-card", jobLimiter, async (req: any, res: any) => {
     const job = getJobByPublicId(req.params.publicId);
@@ -1003,6 +1025,14 @@ Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grai
     const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
     const videoPath = path.join(videosDir, `${req.params.publicId}.mp4`);
 
+    const VIDEO_MAX_ATTEMPTS = 3;
+    const attempts = job.video_attempts ?? 0;
+
+    // Attempt cap — prevents repeated billing on failure/abuse
+    if (attempts >= VIDEO_MAX_ATTEMPTS && job.video_b64 !== "DONE") {
+      return res.status(429).json({ status: "limit_reached", message: "Video generation limit reached. Contact support." });
+    }
+
     // ERROR marker: generation failed previously — stop polling, show error to client
     if (job.video_b64 === "ERROR") {
       return res.status(500).json({ status: "error", message: "Video generation failed — click Retry" });
@@ -1018,6 +1048,7 @@ Style: Shot on ARRI Alexa 65, Panavision Ultra Speed MKII lenses, 35mm film grai
     } catch {
       // Video not yet on disk — trigger on-demand if card is ready and not already running
       if (job.status === "DONE" && job.bg_layer_b64 && !videoGenInProgress.has(job.id)) {
+        incrementVideoAttempts(job.id);
         videoGenInProgress.add(job.id);
         generateCardVideo(job.id)
           .catch(e => console.error("[video] On-demand generation failed:", e))

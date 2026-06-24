@@ -46,6 +46,7 @@ try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_public_id ON jobs(publ
 try { db.exec('ALTER TABLE jobs ADD COLUMN complete_token TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN buyer_email TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN skill_input TEXT;'); } catch (e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN video_attempts INTEGER DEFAULT 0;'); } catch (e) {}
 
 export interface Job {
   id: string;
@@ -68,6 +69,7 @@ export interface Job {
   complete_token: string | null;
   buyer_email: string | null;
   skill_input: string | null;
+  video_attempts: number;
   created_at: string;
 }
 
@@ -162,6 +164,14 @@ export function getLeaderboard(limit = 50): LeaderboardEntry[] {
     ORDER BY player_number ASC
     LIMIT ?
   `).all(limit) as LeaderboardEntry[];
+}
+
+export function incrementVideoAttempts(jobId: string): void {
+  db.prepare('UPDATE jobs SET video_attempts = COALESCE(video_attempts, 0) + 1 WHERE id = ?').run(jobId);
+}
+
+export function resetVideoAttempts(jobId: string): void {
+  db.prepare('UPDATE jobs SET video_attempts = 0, video_b64 = NULL WHERE id = ?').run(jobId);
 }
 
 export function logConsent(jobId: string, age: boolean, ownership: boolean, privacy: boolean, ipHash: string) {

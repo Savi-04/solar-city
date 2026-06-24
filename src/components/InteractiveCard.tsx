@@ -10,7 +10,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   const [error, setError] = useState<string | null>(null);
   const [paymentPending, setPaymentPending] = useState(false);
   const [gyroPermission, setGyroPermission] = useState<'unavailable' | 'prompt' | 'granted' | 'denied'>('unavailable');
-  const [videoState, setVideoState] = useState<'idle' | 'generating' | 'error'>('idle');
+  const [videoState, setVideoState] = useState<'idle' | 'generating' | 'error' | 'limit'>('idle');
   const videoPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -168,6 +168,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     const tryDownload = async (): Promise<boolean> => {
       const res = await fetch(endpoint);
       if (res.status === 202) return false; // still generating
+      if (res.status === 429) { setVideoState('limit'); return true; } // generation cap hit
       if (!res.ok) throw new Error('request_failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -387,37 +388,46 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
               ◈ Enable gyroscope tilt
             </button>
           )}
-          {/* Download for TikTok — triggers Seedance video generation */}
-          <button
-            onClick={handleDownloadVideo}
-            disabled={videoState === 'generating'}
-            className="inline-flex items-center justify-center space-x-2 rounded-xl px-7 py-3.5 font-black tracking-[0.14em] text-[13px] transition-all w-full max-w-[280px]"
-            style={{
-              background: videoState === 'generating'
-                ? "linear-gradient(180deg, #060f08 0%, #040a06 100%)"
-                : "linear-gradient(180deg, #0a1a10 0%, #061009 100%)",
-              border: `1px solid rgba(0,255,127,${videoState === 'generating' ? '0.18' : '0.38'})`,
-              boxShadow: videoState === 'generating'
-                ? "none"
-                : "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 22px rgba(0,255,127,0.12)",
-              color: videoState === 'generating' ? "rgba(0,255,127,0.35)" : "#00ff7f",
-              cursor: videoState === 'generating' ? "wait" : "pointer",
-            }}
-          >
-            {videoState === 'generating' ? (
-              <>
-                <span style={{ display: "inline-block", animation: "spin-slow 1.2s linear infinite" }}>◌</span>
-                <span>Generating Video…</span>
-              </>
-            ) : videoState === 'error' ? (
-              <span>⚠ Retry Download</span>
-            ) : (
-              <>
-                <span style={{ fontSize: "15px" }}>⬇</span>
-                <span>Download for TikTok</span>
-              </>
-            )}
-          </button>
+          {/* Download for TikTok — triggers Kling O3 video generation */}
+          {videoState === 'limit' ? (
+            <div
+              className="inline-flex items-center justify-center space-x-2 rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full max-w-[280px]"
+              style={{ background: "rgba(255,68,68,0.06)", border: "1px solid rgba(255,68,68,0.25)", color: "rgba(255,68,68,0.6)" }}
+            >
+              <span>Generation limit reached — contact support</span>
+            </div>
+          ) : (
+            <button
+              onClick={handleDownloadVideo}
+              disabled={videoState === 'generating'}
+              className="inline-flex items-center justify-center space-x-2 rounded-xl px-7 py-3.5 font-black tracking-[0.14em] text-[13px] transition-all w-full max-w-[280px]"
+              style={{
+                background: videoState === 'generating'
+                  ? "linear-gradient(180deg, #060f08 0%, #040a06 100%)"
+                  : "linear-gradient(180deg, #0a1a10 0%, #061009 100%)",
+                border: `1px solid rgba(0,255,127,${videoState === 'generating' ? '0.18' : '0.38'})`,
+                boxShadow: videoState === 'generating'
+                  ? "none"
+                  : "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 22px rgba(0,255,127,0.12)",
+                color: videoState === 'generating' ? "rgba(0,255,127,0.35)" : "#00ff7f",
+                cursor: videoState === 'generating' ? "wait" : "pointer",
+              }}
+            >
+              {videoState === 'generating' ? (
+                <>
+                  <span style={{ display: "inline-block", animation: "spin-slow 1.2s linear infinite" }}>◌</span>
+                  <span>Generating Video…</span>
+                </>
+              ) : videoState === 'error' ? (
+                <span>⚠ Retry Download</span>
+              ) : (
+                <>
+                  <span style={{ fontSize: "15px" }}>⬇</span>
+                  <span>Download for TikTok</span>
+                </>
+              )}
+            </button>
+          )}
 
           <Link
             to="/create"
