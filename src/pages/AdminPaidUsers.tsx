@@ -37,7 +37,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function AdminPaidUsers() {
-  const [secret, setSecret] = useState(() => sessionStorage.getItem("admin_secret") || "");
+  const [secret, setSecret] = useState("");
   const [authed, setAuthed] = useState(false);
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,7 +57,6 @@ export default function AdminPaidUsers() {
       const data = await res.json();
       setJobs(data);
       setAuthed(true);
-      sessionStorage.setItem("admin_secret", s);
     } catch {
       setError("Could not reach server.");
     } finally {
@@ -331,15 +330,19 @@ export default function AdminPaidUsers() {
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         {job.video_b64 === "DONE" && job.public_id ? (
-                          <a
-                            href={`/api/public/${job.public_id}/video.mp4?admin=${encodeURIComponent(secret)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline"
-                            style={{ color: "#00ff7f" }}
-                          >
-                            ⬇ MP4
-                          </a>
+                          <button
+                            onClick={async () => {
+                              const r = await fetch(`/api/public/${job.public_id}/video.mp4`, { headers: { "x-admin-secret": secret } });
+                              if (!r.ok) return;
+                              const blob = await r.blob();
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a"); a.href = url; a.download = `${job.public_id}-video.mp4`;
+                              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                              setTimeout(() => URL.revokeObjectURL(url), 5000);
+                            }}
+                            className="underline cursor-pointer"
+                            style={{ color: "#00ff7f", background: "none", border: "none", padding: 0, font: "inherit" }}
+                          >⬇ MP4</button>
                         ) : job.video_b64 === "ERROR" ? (
                           <span
                             className="px-2 py-0.5 rounded text-[9px] tracking-widest uppercase font-bold cursor-help"
@@ -373,15 +376,19 @@ export default function AdminPaidUsers() {
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         {job.card_video_b64 === "DONE" && job.public_id ? (
-                          <a
-                            href={`/api/public/${job.public_id}/card-video.mp4?admin=${encodeURIComponent(secret)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline"
-                            style={{ color: "#b478ff" }}
-                          >
-                            ⬇ MP4
-                          </a>
+                          <button
+                            onClick={async () => {
+                              const r = await fetch(`/api/public/${job.public_id}/card-video.mp4`, { headers: { "x-admin-secret": secret } });
+                              if (!r.ok) return;
+                              const blob = await r.blob();
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a"); a.href = url; a.download = `${job.public_id}-card.mp4`;
+                              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                              setTimeout(() => URL.revokeObjectURL(url), 5000);
+                            }}
+                            className="underline cursor-pointer"
+                            style={{ color: "#b478ff", background: "none", border: "none", padding: 0, font: "inherit" }}
+                          >⬇ MP4</button>
                         ) : job.card_video_b64 === "ERROR" ? (
                           <span
                             className="px-2 py-0.5 rounded text-[9px] tracking-widest uppercase font-bold cursor-help"

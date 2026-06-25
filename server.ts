@@ -13,9 +13,10 @@ import { Readable } from "stream";
 import { readFileSync, createReadStream } from "fs";
 import * as fsPromises from "fs/promises";
 import nodemailer from "nodemailer";
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 fal.config({ credentials: process.env.FAL_KEY });
 const videoGenInProgress = new Set<string>();     // character video — prevents double-charging
@@ -110,6 +111,9 @@ const upload = multer({
 });
 
 async function startServer() {
+  if (!process.env.ADMIN_SECRET) console.warn("[startup] WARNING: ADMIN_SECRET not set — admin endpoints unprotected");
+  if (!process.env.GUMROAD_SELLER_ID) console.warn("[startup] WARNING: GUMROAD_SELLER_ID not set — webhook seller verification disabled");
+
   const app = express();
   app.set('trust proxy', 1);
 
@@ -120,6 +124,12 @@ async function startServer() {
   app.use("/api/fal/proxy", jobLimiter, express.raw({ type: "*/*", limit: "50mb" }), async (req: any, res: any) => {
     const targetUrl = req.headers["x-fal-target-url"] as string;
     if (!targetUrl) { res.status(400).json({ error: "Missing x-fal-target-url" }); return; }
+    const ALLOWED_FAL_HOSTS = ["fal.run", "fal.ai", "fal.media", "storage.fal.ai"];
+    try {
+      const parsed = new URL(targetUrl);
+      const ok = ALLOWED_FAL_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith("." + h));
+      if (!ok) { res.status(400).json({ error: "Forbidden proxy target" }); return; }
+    } catch { res.status(400).json({ error: "Invalid URL" }); return; }
     const headers: Record<string, string> = { "Authorization": `Key ${process.env.FAL_KEY}` };
     if (req.headers["content-type"]) headers["content-type"] = req.headers["content-type"] as string;
     const response = await fetch(targetUrl, {
@@ -572,7 +582,7 @@ async function startServer() {
   // Admin secret in ?admin= query param bypasses token check for admin panel downloads.
   function checkDownloadToken(req: any, res: any, job: { download_token: string | null }): boolean {
     if (!job.download_token) return true; // legacy card — no token required
-    if (process.env.ADMIN_SECRET && req.query.admin === process.env.ADMIN_SECRET) return true;
+    if (process.env.ADMIN_SECRET && req.headers['x-admin-secret'] === process.env.ADMIN_SECRET) return true;
     const provided = req.query.owner as string | undefined;
     if (provided === job.download_token) return true;
     res.status(403).json({ error: "owner_required", message: "Check your email for the owner link to download your videos." });
@@ -680,9 +690,9 @@ Camera pans VERY SLOWLY rightward over 10 seconds. Smooth, no cuts, no shake. Ul
 
     try {
       // Probe video dimensions to compute overlay position
-      const { stdout: probeOut } = await execAsync(
-        `ffprobe -v quiet -print_format json -show_streams "${rawVideoPath}"`
-      );
+      const { stdout: probeOut } = await execFileAsync("ffprobe", [
+        "-v", "quiet", "-print_format", "json", "-show_streams", rawVideoPath
+      ], { encoding: "utf8" });
       const vStream = JSON.parse(probeOut).streams?.find((s: any) => s.codec_type === "video");
       const vW: number = vStream?.width ?? 1080;
       const vH: number = vStream?.height ?? 1920;
@@ -694,11 +704,13 @@ Camera pans VERY SLOWLY rightward over 10 seconds. Smooth, no cuts, no shake. Ul
         `[1:v]scale=${cardW}:-1[card];` +
         `[0:v][card]overlay=x='main_w-overlay_w-20':y='20':shortest=1`;
 
-      await execAsync(
-        `ffmpeg -y -i "${rawVideoPath}" -loop 1 -i "${cardJpegPath}" ` +
-        `-filter_complex "${fc}" ` +
-        `-c:v libx264 -preset fast -crf 20 -an -movflags +faststart "${videoPath}"`
-      );
+      await execFileAsync("ffmpeg", [
+        "-y", "-i", rawVideoPath,
+        "-loop", "1", "-i", cardJpegPath,
+        "-filter_complex", fc,
+        "-c:v", "libx264", "-preset", "fast", "-crf", "20",
+        "-an", "-movflags", "+faststart", videoPath
+      ]);
       console.log(`[video] Card overlay applied (right side) → ${videoPath}`);
     } catch (ffmpegErr: any) {
       // FFmpeg failed — use raw Kling video as fallback
@@ -925,7 +937,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
   // Gumroad post-payment redirect — called via the ?wanted= URL parameter on the overlay link.
   // Marks the job DONE and redirects user to their card.
   // Only accepts jobs in PREVIEW_READY status to prevent replaying against arbitrary UUIDs.
-  app.get("/api/gumroad/complete", (req: any, res: any) => {
+  app.get("/api/gumroad/complete", jobLimiter, (req: any, res: any) => {
     const jobId = req.query.job_id as string | undefined;
     const token = req.query.token as string | undefined;
     if (!jobId) return res.redirect("/");
@@ -959,8 +971,8 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     express.urlencoded({ extended: true }),
     async (req: any, res: any) => {
       const sellerId = req.body.seller_id as string | undefined;
-      if (process.env.GUMROAD_SELLER_ID && sellerId !== process.env.GUMROAD_SELLER_ID) {
-        return res.status(403).json({ error: "Invalid seller" });
+      if (process.env.GUMROAD_SELLER_ID) {
+        if (sellerId !== process.env.GUMROAD_SELLER_ID) return res.status(403).json({ error: "Invalid seller" });
       }
 
       try {
@@ -1116,7 +1128,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
 
   // Dev-only checkout stub — disabled when GUMROAD_SELLER_ID is set (production)
   app.post("/api/checkout", async (req, res) => {
-    if (process.env.GUMROAD_SELLER_ID) {
+    if (process.env.NODE_ENV === "production" || process.env.GUMROAD_SELLER_ID) {
       return res.status(404).json({ error: "Not found" });
     }
     const { jobId } = req.body;
@@ -1130,6 +1142,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
   app.post("/api/public/:publicId/video-reset", jobLimiter, (req: any, res: any) => {
     const job = getJobByPublicId(req.params.publicId);
     if (!job) return res.status(404).json({ error: "Not found" });
+    if (!checkDownloadToken(req, res, job)) return;
     if (job.video_b64 === "ERROR") saveVideoOnly(job.id, null as any);
     res.json({ ok: true });
   });
@@ -1187,7 +1200,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     if (!checkDownloadToken(req, res, job)) return;
 
     const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
-    const videoPath = path.join(videosDir, `${req.params.publicId}.mp4`);
+    const videoPath = path.join(videosDir, `${job.public_id}.mp4`);
 
     const VIDEO_MAX_ATTEMPTS = 5;
     const attempts = job.video_attempts ?? 0;
@@ -1371,10 +1384,10 @@ Hyper-realistic, cinematic quality, smooth motion.`;
       const cardUrl = `${base}/id/${req.params.publicId}`;
 
       const title = job?.status === "DONE" && job.name_input
-        ? `RESIDENT ${job.name_input.toUpperCase()} — SOLARA CITY ID`
+        ? `RESIDENT ${escapeXml(job.name_input.toUpperCase())} — SOLARA CITY ID`
         : "SOLARA CITY — Holographic ID Card";
       const desc = job?.status === "DONE"
-        ? `${job.name_input}, ${job.city_input} · Solara City Bureau of Residents`
+        ? `${escapeXml(job.name_input!)}, ${escapeXml(job.city_input!)} · Solara City Bureau of Residents`
         : "Turn your selfie into a holographic game-art ID card";
       const ogImage = job?.status === "DONE"
         ? `${base}/api/public/${req.params.publicId}/og-card`
