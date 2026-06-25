@@ -332,7 +332,7 @@ export default function AdminPaidUsers() {
                       <div className="flex flex-col gap-1">
                         {job.video_b64 === "DONE" && job.public_id ? (
                           <a
-                            href={`/api/public/${job.public_id}/video.mp4`}
+                            href={`/api/public/${job.public_id}/video.mp4?admin=${encodeURIComponent(secret)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="underline"
@@ -374,7 +374,7 @@ export default function AdminPaidUsers() {
                       <div className="flex flex-col gap-1">
                         {job.card_video_b64 === "DONE" && job.public_id ? (
                           <a
-                            href={`/api/public/${job.public_id}/card-video.mp4`}
+                            href={`/api/public/${job.public_id}/card-video.mp4?admin=${encodeURIComponent(secret)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="underline"

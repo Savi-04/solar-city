@@ -563,8 +563,10 @@ async function startServer() {
 
   // Validates the download token from a request. Returns true if access is allowed.
   // Legacy jobs (no token) are allowed through so existing users aren't locked out.
+  // Admin secret in ?admin= query param bypasses token check for admin panel downloads.
   function checkDownloadToken(req: any, res: any, job: { download_token: string | null }): boolean {
     if (!job.download_token) return true; // legacy card — no token required
+    if (process.env.ADMIN_SECRET && req.query.admin === process.env.ADMIN_SECRET) return true;
     const provided = req.query.owner as string | undefined;
     if (provided === job.download_token) return true;
     res.status(403).json({ error: "owner_required", message: "Check your email for the owner link to download your videos." });

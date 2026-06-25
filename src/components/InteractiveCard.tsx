@@ -531,11 +531,20 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
           )}
           {/* Download for TikTok — video is pre-generated at card creation, usually ready on arrival */}
           {videoState === 'no_token' ? (
-            <div
-              className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full max-w-[280px] text-center"
-              style={{ background: "rgba(255,160,0,0.06)", border: "1px solid rgba(255,160,0,0.22)", color: "rgba(255,160,0,0.7)", lineHeight: "1.6" }}
-            >
-              Open the owner link from your email to download
+            <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
+              <div
+                className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full text-center"
+                style={{ background: "rgba(255,160,0,0.06)", border: "1px solid rgba(255,160,0,0.22)", color: "rgba(255,160,0,0.7)", lineHeight: "1.6" }}
+              >
+                Check your purchase confirmation email and click the card link inside it to unlock downloads on this device
+              </div>
+              <button
+                onClick={() => setVideoState('idle')}
+                className="font-mono text-[9px] tracking-[0.25em] uppercase"
+                style={{ color: "rgba(255,255,255,0.2)" }}
+              >
+                ↺ try again
+              </button>
             </div>
           ) : videoState === 'limit' ? (
             <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
