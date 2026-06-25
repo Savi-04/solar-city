@@ -234,10 +234,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     setVideoState('generating');
     const startedAt = Date.now();
 
-    // If nothing is running (edge case: pre-trigger missed), kick it off via video.mp4
-    if (!status?.generating && status?.video_b64 !== "ERROR") {
-      fetch(withOwner(`/api/public/${publicId}/video.mp4`)).catch(() => {});
-    }
+    // Generation is triggered server-side by video-status polling — no extra kick needed here.
 
     // Countdown tick — updates timer display every second
     timerRef.current = setInterval(() => {
@@ -307,8 +304,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     setCardVideoState('generating');
     const startedAt = Date.now();
 
-    // Kick off generation via endpoint (it deduplicates internally)
-    fetch(withOwner(`/api/public/${publicId}/card-video.mp4`)).catch(() => {});
+    // Generation is triggered server-side by card-video-status polling.
 
     cardTimerRef.current = setInterval(() => {
       const left = Math.max(0, 300 - Math.floor((Date.now() - startedAt) / 1000));

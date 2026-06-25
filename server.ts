@@ -1215,13 +1215,32 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     }
   });
 
-  // Video status — returns current state + error without serving the file
+  // Video status — returns current state + error without serving the file.
+  // Also triggers generation if the video hasn't started yet (token-free so polling always works).
   app.get("/api/public/:publicId/video-status", jobLimiter, (req: any, res: any) => {
     const job = getJobByPublicId(req.params.publicId);
     if (!job) return res.status(404).json({ error: "Not found" });
+
+    const attempts = job.video_attempts ?? 0;
+    const maxAttempts = 5;
+    // Kick off generation if not done, not errored, not at limit, and not already running
+    if (
+      job.status === "DONE" &&
+      job.video_b64 !== "DONE" &&
+      job.video_b64 !== "ERROR" &&
+      attempts < maxAttempts &&
+      job.bg_layer_b64 &&
+      !videoGenInProgress.has(job.id)
+    ) {
+      videoGenInProgress.add(job.id);
+      generateCardVideo(job.id)
+        .catch(e => console.error("[video] Status-triggered generation failed:", e))
+        .finally(() => videoGenInProgress.delete(job.id));
+    }
+
     res.json({
       video_b64: job.video_b64,
-      video_attempts: job.video_attempts ?? 0,
+      video_attempts: attempts,
       video_error: job.video_error,
       generating: videoGenInProgress.has(job.id),
     });
@@ -1267,13 +1286,30 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     }
   });
 
-  // Card product-shot video status
+  // Card product-shot video status — also triggers generation if not yet started.
   app.get("/api/public/:publicId/card-video-status", jobLimiter, (req: any, res: any) => {
     const job = getJobByPublicId(req.params.publicId);
     if (!job) return res.status(404).json({ error: "Not found" });
+
+    const attempts = job.card_video_attempts ?? 0;
+    const maxAttempts = 3;
+    if (
+      job.status === "DONE" &&
+      job.card_video_b64 !== "DONE" &&
+      job.card_video_b64 !== "ERROR" &&
+      attempts < maxAttempts &&
+      job.bg_layer_b64 &&
+      !cardVideoGenInProgress.has(job.id)
+    ) {
+      cardVideoGenInProgress.add(job.id);
+      generateCardProductVideo(job.id)
+        .catch(e => console.error("[card-video] Status-triggered generation failed:", e))
+        .finally(() => cardVideoGenInProgress.delete(job.id));
+    }
+
     res.json({
       card_video_b64: job.card_video_b64,
-      card_video_attempts: job.card_video_attempts ?? 0,
+      card_video_attempts: attempts,
       card_video_error: job.card_video_error,
       generating: cardVideoGenInProgress.has(job.id),
     });
