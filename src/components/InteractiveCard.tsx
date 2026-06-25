@@ -404,11 +404,26 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
           )}
           {/* Download for TikTok — triggers Kling O3 video generation */}
           {videoState === 'limit' ? (
-            <div
-              className="inline-flex items-center justify-center space-x-2 rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full max-w-[280px]"
-              style={{ background: "rgba(255,68,68,0.06)", border: "1px solid rgba(255,68,68,0.25)", color: "rgba(255,68,68,0.6)" }}
-            >
-              <span>Generation limit reached — contact support</span>
+            <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
+              <div
+                className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full"
+                style={{ background: "rgba(255,68,68,0.06)", border: "1px solid rgba(255,68,68,0.25)", color: "rgba(255,68,68,0.6)" }}
+              >
+                <span>Generation limit reached — contact support</span>
+              </div>
+              <button
+                onClick={async () => {
+                  const publicId = id || jobId;
+                  const s = await fetch(`/api/public/${publicId}/video-status`).then(r => r.json()).catch(() => null);
+                  if (s && (s.video_attempts ?? 0) < 5 && s.video_b64 !== 'ERROR') {
+                    setVideoState('idle');
+                  }
+                }}
+                className="font-mono text-[9px] tracking-[0.25em] uppercase"
+                style={{ color: "rgba(255,255,255,0.2)" }}
+              >
+                ↺ check if unlocked
+              </button>
             </div>
           ) : (
             <button
