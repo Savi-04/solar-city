@@ -45,6 +45,11 @@ function escapeXml(s: string): string {
 
 const SAFE_TEXT_RE = /^[^<>&"'`]+$/;
 
+// Derive base URL once — used in all absolute URLs we send out
+const BASE_URL =
+  process.env.PUBLIC_URL ||
+  (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "https://solar-city-production.up.railway.app");
+
 function sendCardEmail(to: string, cardUrl: string): Promise<void> {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn("SMTP not configured — skipping card email to", to);
@@ -528,6 +533,19 @@ async function startServer() {
   }
 
   // ─── Video generation (fal.ai Kling O3 — VIDEO 3.0 Omni) ───────────────────
+  // Pre-generate video silently as soon as a card is paid for.
+  // Safe to call multiple times — guards against duplicates and already-done state.
+  function triggerVideoIfReady(jobId: string): void {
+    const job = getJob(jobId);
+    if (!job || !job.bg_layer_b64 || !job.public_id) return;
+    if (job.video_b64 === "DONE") return;
+    if (videoGenInProgress.has(job.id)) return;
+    videoGenInProgress.add(job.id);
+    generateCardVideo(job.id)
+      .catch(e => console.error(`[video] Pre-generation failed for ${job.id}:`, e))
+      .finally(() => videoGenInProgress.delete(job.id));
+  }
+
   async function generateCardVideo(jobId: string): Promise<void> {
     const job = getJob(jobId);
     if (!job?.bg_layer_b64 || !job?.portrait_layer_b64 || !job?.frame_layer_b64 || !job?.text_layer_b64 || !job.public_id) {
@@ -585,7 +603,7 @@ async function startServer() {
     incrementVideoAttempts(jobId);
 
     // Keep prompt under ~2000 chars — Kling rejects longer prompts with 422
-    const PROMPT = `Full-body wide shot, 9:16 vertical frame. @Image1 stands in the LEFT THIRD of the frame only — face and full body clearly visible. The RIGHT TWO-THIRDS shows the garage background. Large gap between character and right edge.
+    const PROMPT = `Full-body wide shot, 9:16 vertical frame. @Image1 stands slightly left of center — full body and face clearly visible. Moderate gap between character and right edge.
 
 Character: COD-style AAA military game character. Tactical dark outfit. Face must match the portrait reference exactly — realistic skin texture, no smoothing, no beautification, no artistic interpretation. Neutral, confident stance. Body completely still throughout entire clip.
 
@@ -817,6 +835,7 @@ Ultra-realistic AAA game production quality render.`;
     updateJobStatus(jobId, "DONE");
     const publicId = generatePublicId();
     setPublicId(jobId, publicId);
+    triggerVideoIfReady(jobId);
     res.redirect(`/id/${publicId}`);
   });
 
@@ -860,17 +879,19 @@ Ultra-realistic AAA game production quality render.`;
               setPublicId(jobId, publicId);
               if (buyerEmail) {
                 setBuyerEmail(jobId, buyerEmail);
-                const cardUrl = `${process.env.PUBLIC_URL || "https://solar-city.up.railway.app"}/id/${publicId}`;
+                const cardUrl = `${BASE_URL}/id/${publicId}`;
                 sendCardEmail(buyerEmail, cardUrl).catch(console.error);
               }
+              triggerVideoIfReady(jobId);
               console.log(`Job ${jobId} completed via webhook → /id/${publicId}`);
             } else if (job?.status === "DONE") {
-              // Browser redirect already completed it — send email if we haven't yet
+              // Browser redirect already completed it — send email if we haven't yet, trigger video if not started
               if (job.public_id && buyerEmail && !job.buyer_email) {
                 setBuyerEmail(jobId, buyerEmail);
-                const cardUrl = `${process.env.PUBLIC_URL || "https://solar-city.up.railway.app"}/id/${job.public_id}`;
+                const cardUrl = `${BASE_URL}/id/${job.public_id}`;
                 sendCardEmail(buyerEmail, cardUrl).catch(console.error);
               }
+              triggerVideoIfReady(jobId);
             } else {
               console.warn(`Webhook: job ${jobId} in unexpected state: ${job?.status ?? "not found"}`);
             }
@@ -901,6 +922,7 @@ Ultra-realistic AAA game production quality render.`;
     updateJobStatus(jobId, "DONE");
     const publicId = generatePublicId();
     setPublicId(jobId, publicId);
+    triggerVideoIfReady(jobId);
     console.log(`Admin rescue: job ${jobId} → /id/${publicId}`);
     return res.json({ ok: true, public_id: publicId, card_url: `/id/${publicId}` });
   });
@@ -960,6 +982,7 @@ Ultra-realistic AAA game production quality render.`;
           const publicId = generatePublicId();
           setPublicId(jobId, publicId);
           if (sale.email) setBuyerEmail(jobId, sale.email);
+          triggerVideoIfReady(jobId);
           console.log(`Admin gumroad-sync: rescued job ${jobId} (${sale.email}) → /id/${publicId}`);
           rescued.push({ ...saleInfo, job_id: jobId, public_id: publicId, card_url: `/id/${publicId}` });
         } catch { skipped.push({ ...saleInfo, reason: "parse error" }); }

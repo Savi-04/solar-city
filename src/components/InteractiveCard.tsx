@@ -10,8 +10,10 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   const [error, setError] = useState<string | null>(null);
   const [paymentPending, setPaymentPending] = useState(false);
   const [gyroPermission, setGyroPermission] = useState<'unavailable' | 'prompt' | 'granted' | 'denied'>('unavailable');
-  const [videoState, setVideoState] = useState<'idle' | 'generating' | 'error' | 'limit'>('idle');
+  const [videoState, setVideoState] = useState<'idle' | 'generating' | 'timeout' | 'error' | 'limit'>('idle');
+  const [timerSecondsLeft, setTimerSecondsLeft] = useState<number>(300);
   const videoPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -152,67 +154,87 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   }, [activeId, standalone, navigate]);
 
   // Clean up video poll on unmount
-  useEffect(() => () => { if (videoPollRef.current) clearInterval(videoPollRef.current); }, []);
+  useEffect(() => () => {
+    if (videoPollRef.current) clearInterval(videoPollRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
+
+  const triggerDownload = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'solara-city-card.mp4';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    setVideoState('idle');
+  };
+
+  function stopTimers() {
+    if (videoPollRef.current) { clearInterval(videoPollRef.current); videoPollRef.current = null; }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  }
 
   async function handleDownloadVideo() {
     if (!id && !jobId) return;
-    setVideoState('generating');
     const publicId = id || jobId;
-    const endpoint = `/api/public/${publicId}/video.mp4`;
+    stopTimers();
 
-    // Per-click flag: we allow ONE transparent error-clear + re-trigger per button press.
-    // The polling loop itself never re-triggers on error — that would burn attempts silently.
-    let clearedOnce = false;
+    // Check if the video is already ready (pre-generated at card creation time)
+    const status = await fetch(`/api/public/${publicId}/video-status`).then(r => r.json()).catch(() => null);
 
-    const tryDownload = async (): Promise<boolean> => {
-      const res = await fetch(endpoint);
-      if (res.status === 202) return false; // still generating, keep polling
-      if (res.status === 429) { setVideoState('limit'); return true; }
-      if (res.status === 500) {
-        if (!clearedOnce) {
-          // First 500 this session: clear the error server-side and immediately re-trigger
-          clearedOnce = true;
-          await fetch(`/api/public/${publicId}/video-reset`, { method: 'POST' }).catch(() => {});
-          // Fetch again right now — server will start a fresh generation
-          const retry = await fetch(endpoint);
-          if (retry.status === 429) { setVideoState('limit'); return true; }
-          if (retry.status === 202) return false; // now generating, start polling
-          if (retry.ok) {
-            const blob = await retry.blob();
-            triggerDownload(blob);
-            return true;
-          }
-        }
-        // Second 500 in same session — surface to user, stop polling
-        setVideoState('error');
-        return true;
+    if (status?.video_b64 === "DONE") {
+      setVideoState('generating');
+      const res = await fetch(`/api/public/${publicId}/video.mp4`).catch(() => null);
+      if (res?.ok) { const blob = await res.blob(); triggerDownload(blob); }
+      else setVideoState('error');
+      return;
+    }
+
+    if ((status?.video_attempts ?? 0) >= 5 && status?.video_b64 !== "DONE") {
+      setVideoState('limit');
+      return;
+    }
+
+    // Video still generating — show 5-min countdown and poll status
+    const WAIT_SECS = 300;
+    setTimerSecondsLeft(WAIT_SECS);
+    setVideoState('generating');
+    const startedAt = Date.now();
+
+    // If nothing is running (edge case: pre-trigger missed), kick it off via video.mp4
+    if (!status?.generating && status?.video_b64 !== "ERROR") {
+      fetch(`/api/public/${publicId}/video.mp4`).catch(() => {});
+    }
+
+    // Countdown tick — updates timer display every second
+    timerRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const left = Math.max(0, WAIT_SECS - elapsed);
+      setTimerSecondsLeft(left);
+      if (left === 0) {
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        setVideoState(prev => prev === 'generating' ? 'timeout' : prev);
       }
-      if (!res.ok) { setVideoState('error'); return true; }
-      const blob = await res.blob();
-      triggerDownload(blob);
-      return true;
-    };
+    }, 1000);
 
-    const triggerDownload = (blob: Blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'solara-city-card.mp4';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 15000);
-      setVideoState('idle');
-    };
-
-    const done = await tryDownload();
-    if (done) return;
-
+    // Poll video-status (cheaper than polling video.mp4, doesn't risk re-triggering generation)
     videoPollRef.current = setInterval(async () => {
-      const done = await tryDownload().catch(() => { setVideoState('error'); return true; });
-      if (done) {
-        clearInterval(videoPollRef.current!);
-        videoPollRef.current = null;
+      const s = await fetch(`/api/public/${publicId}/video-status`).then(r => r.json()).catch(() => null);
+      if (!s) return;
+
+      if (s.video_b64 === "DONE") {
+        stopTimers();
+        const res = await fetch(`/api/public/${publicId}/video.mp4`).catch(() => null);
+        if (res?.ok) { const blob = await res.blob(); triggerDownload(blob); }
+        else setVideoState('error');
+        return;
+      }
+
+      if (s.video_b64 === "ERROR" || (s.video_attempts ?? 0) >= 5) {
+        stopTimers();
+        setVideoState((s.video_attempts ?? 0) >= 5 ? 'limit' : 'error');
       }
     }, 5000);
   }
@@ -402,7 +424,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
               ◈ Enable gyroscope tilt
             </button>
           )}
-          {/* Download for TikTok — triggers Kling O3 video generation */}
+          {/* Download for TikTok — video is pre-generated at card creation, usually ready on arrival */}
           {videoState === 'limit' ? (
             <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
               <div
@@ -415,9 +437,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
                 onClick={async () => {
                   const publicId = id || jobId;
                   const s = await fetch(`/api/public/${publicId}/video-status`).then(r => r.json()).catch(() => null);
-                  if (s && (s.video_attempts ?? 0) < 5 && s.video_b64 !== 'ERROR') {
-                    setVideoState('idle');
-                  }
+                  if (s && (s.video_attempts ?? 0) < 5 && s.video_b64 !== 'ERROR') setVideoState('idle');
                 }}
                 className="font-mono text-[9px] tracking-[0.25em] uppercase"
                 style={{ color: "rgba(255,255,255,0.2)" }}
@@ -425,29 +445,48 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
                 ↺ check if unlocked
               </button>
             </div>
+          ) : videoState === 'timeout' ? (
+            <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
+              <div
+                className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full text-center"
+                style={{ background: "rgba(255,160,0,0.06)", border: "1px solid rgba(255,160,0,0.2)", color: "rgba(255,160,0,0.65)", lineHeight: "1.5" }}
+              >
+                ⏳ Still rendering — tap to check if ready
+              </div>
+              <button
+                onClick={handleDownloadVideo}
+                className="font-mono text-[9px] tracking-[0.25em] uppercase"
+                style={{ color: "rgba(255,255,255,0.25)" }}
+              >
+                ↺ check status
+              </button>
+            </div>
+          ) : videoState === 'generating' ? (
+            <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
+              <div
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[12px] w-full"
+                style={{ background: "linear-gradient(180deg, #060f08 0%, #040a06 100%)", border: "1px solid rgba(0,255,127,0.18)", color: "rgba(0,255,127,0.5)", cursor: "wait" }}
+              >
+                <span style={{ display: "inline-block", animation: "spin-slow 1.2s linear infinite" }}>◌</span>
+                <span>{Math.floor(timerSecondsLeft / 60)}:{String(timerSecondsLeft % 60).padStart(2, '0')} — generating…</span>
+              </div>
+              <div style={{ width: "100%", maxWidth: "280px", height: "2px", background: "rgba(0,255,127,0.08)", borderRadius: "1px", overflow: "hidden" }}>
+                <div style={{ height: "100%", background: "rgba(0,255,127,0.45)", borderRadius: "1px", transition: "width 1s linear", width: `${((300 - timerSecondsLeft) / 300) * 100}%` }} />
+              </div>
+            </div>
           ) : (
             <button
               onClick={handleDownloadVideo}
-              disabled={videoState === 'generating'}
               className="inline-flex items-center justify-center space-x-2 rounded-xl px-7 py-3.5 font-black tracking-[0.14em] text-[13px] transition-all w-full max-w-[280px]"
               style={{
-                background: videoState === 'generating'
-                  ? "linear-gradient(180deg, #060f08 0%, #040a06 100%)"
-                  : "linear-gradient(180deg, #0a1a10 0%, #061009 100%)",
-                border: `1px solid rgba(0,255,127,${videoState === 'generating' ? '0.18' : '0.38'})`,
-                boxShadow: videoState === 'generating'
-                  ? "none"
-                  : "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 22px rgba(0,255,127,0.12)",
-                color: videoState === 'generating' ? "rgba(0,255,127,0.35)" : "#00ff7f",
-                cursor: videoState === 'generating' ? "wait" : "pointer",
+                background: "linear-gradient(180deg, #0a1a10 0%, #061009 100%)",
+                border: "1px solid rgba(0,255,127,0.38)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 22px rgba(0,255,127,0.12)",
+                color: videoState === 'error' ? "#ffaa00" : "#00ff7f",
+                cursor: "pointer",
               }}
             >
-              {videoState === 'generating' ? (
-                <>
-                  <span style={{ display: "inline-block", animation: "spin-slow 1.2s linear infinite" }}>◌</span>
-                  <span>Generating Video…</span>
-                </>
-              ) : videoState === 'error' ? (
+              {videoState === 'error' ? (
                 <span>⚠ Retry Download</span>
               ) : (
                 <>
