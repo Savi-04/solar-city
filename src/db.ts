@@ -48,6 +48,10 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN buyer_email TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN skill_input TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN video_attempts INTEGER DEFAULT 0;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN video_error TEXT;'); } catch (e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN card_video_b64 TEXT;'); } catch (e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN card_video_attempts INTEGER DEFAULT 0;'); } catch (e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN card_video_error TEXT;'); } catch (e) {}
+
 
 export interface Job {
   id: string;
@@ -72,6 +76,9 @@ export interface Job {
   skill_input: string | null;
   video_attempts: number;
   video_error: string | null;
+  card_video_b64: string | null;
+  card_video_attempts: number;
+  card_video_error: string | null;
   created_at: string;
 }
 
@@ -178,6 +185,18 @@ export function resetVideoAttempts(jobId: string): void {
 
 export function saveVideoError(jobId: string, message: string): void {
   db.prepare("UPDATE jobs SET video_b64 = 'ERROR', video_error = ? WHERE id = ?").run(message.slice(0, 500), jobId);
+}
+
+export function incrementCardVideoAttempts(jobId: string): void {
+  db.prepare('UPDATE jobs SET card_video_attempts = COALESCE(card_video_attempts, 0) + 1 WHERE id = ?').run(jobId);
+}
+
+export function saveCardVideoOnly(jobId: string, value: string): void {
+  db.prepare('UPDATE jobs SET card_video_b64 = ? WHERE id = ?').run(value, jobId);
+}
+
+export function saveCardVideoError(jobId: string, message: string): void {
+  db.prepare("UPDATE jobs SET card_video_b64 = 'ERROR', card_video_error = ? WHERE id = ?").run(message.slice(0, 500), jobId);
 }
 
 export function logConsent(jobId: string, age: boolean, ownership: boolean, privacy: boolean, ipHash: string) {

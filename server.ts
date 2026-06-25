@@ -18,7 +18,8 @@ import { promisify } from "util";
 const execAsync = promisify(exec);
 
 fal.config({ credentials: process.env.FAL_KEY });
-const videoGenInProgress = new Set<string>(); // prevents double-charging
+const videoGenInProgress = new Set<string>();     // character video — prevents double-charging
+const cardVideoGenInProgress = new Set<string>(); // card product video
 import {
   db,
   createJob,
@@ -37,6 +38,9 @@ import {
   incrementVideoAttempts,
   resetVideoAttempts,
   saveVideoError,
+  incrementCardVideoAttempts,
+  saveCardVideoOnly,
+  saveCardVideoError,
 } from "./src/db.ts";
 
 function escapeXml(s: string): string {
@@ -694,6 +698,88 @@ Ultra-realistic AAA game production quality render.`;
     }
   }
 
+  // ── Card product-shot video ──────────────────────────────────────────────────
+  // Generates a cinematic 9:16 product shot of the card itself (water droplets,
+  // jungle knife, wooden table, side camera) — separate from the character video.
+  async function generateCardProductVideo(jobId: string): Promise<void> {
+    const job = getJob(jobId);
+    if (!job?.bg_layer_b64 || !job?.portrait_layer_b64 || !job?.frame_layer_b64 || !job?.text_layer_b64 || !job.public_id) {
+      saveCardVideoError(jobId, "Card layers not found — card may be incomplete");
+      return;
+    }
+
+    const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
+    await fsPromises.mkdir(videosDir, { recursive: true });
+    const productVideoPath = path.join(videosDir, `${job.public_id}_p.mp4`);
+
+    try {
+      try { await fsPromises.access(productVideoPath); return; } catch {}
+
+      console.log(`[card-video] Starting product shot generation for ${jobId}`);
+
+      const fullCardBuf = await sharp(Buffer.from(job.bg_layer_b64, "base64"))
+        .composite([
+          { input: Buffer.from(job.portrait_layer_b64, "base64") },
+          { input: Buffer.from(job.frame_layer_b64, "base64") },
+          { input: Buffer.from(job.text_layer_b64, "base64") },
+        ])
+        .jpeg({ quality: 95 })
+        .toBuffer();
+
+      console.log(`[card-video] Uploading card image for ${jobId}...`);
+      const cardUrl = await fal.storage.upload(new Blob([fullCardBuf], { type: "image/jpeg" }));
+      console.log(`[card-video] card → ${cardUrl}`);
+
+      incrementCardVideoAttempts(jobId);
+
+      const PRODUCT_PROMPT = `Cinematic product shot, 9:16 vertical frame. A playing card stands upright at 45 degrees on a worn round wooden table, leaning diagonally. A jungle survival knife — weathered steel blade, leather-wrapped handle — is stabbed through the lower third of the card with its tip embedded into the wood grain, holding the card in place.
+
+Hundreds of hyper-realistic crystal-clear water droplets cover the card surface. Each droplet is perfectly spherical with visible internal light refraction. Water beads slowly trickle down the card face, dripping off the bottom edge onto the wood grain below.
+
+Camera: low and to the side, slightly below table height, angled across the surface. Extreme shallow depth of field — card and knife razor sharp, background softly blurred bokeh.
+
+Lighting: single dramatic warm amber side light from the right catches every water droplet edge. Deep natural shadow fills the left side. The card artwork remains clearly visible through the droplets.
+
+Dark moody atmospheric background. Slow gentle camera arc around the scene. Photorealistic, cinematic, 8K quality product photography.`;
+
+      const result = await fal.subscribe("fal-ai/kling-video/o3/standard/reference-to-video", {
+        input: {
+          prompt: PRODUCT_PROMPT,
+          image_urls: [cardUrl],
+          duration: "5",
+          aspect_ratio: "9:16",
+          generate_audio: false,
+        },
+        logs: true,
+        onQueueUpdate: (update: any) => {
+          console.log(`[card-video] Kling status: ${update.status} for ${jobId}`);
+        },
+      }) as any;
+
+      const videoUrl: string | undefined = result?.data?.video?.url;
+      if (!videoUrl) {
+        const detail = JSON.stringify(result?.data).slice(0, 400);
+        saveCardVideoError(jobId, `No video URL in Kling response: ${detail}`);
+        throw new Error("No video URL in card product video Kling response");
+      }
+
+      console.log(`[card-video] Downloading from ${videoUrl}`);
+      const videoRes = await fetch(videoUrl);
+      if (!videoRes.ok) throw new Error(`Failed to download card product video: ${videoRes.status}`);
+      const videoBuf = Buffer.from(await videoRes.arrayBuffer());
+      await fsPromises.writeFile(productVideoPath, videoBuf);
+
+      console.log(`[card-video] Done → ${productVideoPath} (${videoBuf.length} bytes)`);
+      saveCardVideoOnly(jobId, "DONE");
+    } catch (err: any) {
+      const detail = err?.body?.detail ? JSON.stringify(err.body.detail) : '';
+      const msg = `${err?.message || String(err)}${detail ? ` | detail: ${detail}` : ''}`;
+      console.error(`[card-video] generateCardProductVideo FAILED for ${jobId}:`, msg);
+      saveCardVideoError(jobId, msg);
+      throw err;
+    }
+  }
+
   // Endpoints to serve the layers
   app.get("/api/jobs/:id/layers", jobLimiter, (req, res) => {
     const job = getJob(req.params.id);
@@ -1101,6 +1187,57 @@ Ultra-realistic AAA game production quality render.`;
       video_attempts: job.video_attempts ?? 0,
       video_error: job.video_error,
       generating: videoGenInProgress.has(job.id),
+    });
+  });
+
+  // Card product-shot video — trigger + serve
+  app.get("/api/public/:publicId/card-video.mp4", jobLimiter, async (req: any, res: any) => {
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job || job.status !== "DONE") return res.status(404).json({ error: "Not found" });
+
+    const CARD_VIDEO_MAX_ATTEMPTS = 3;
+    const attempts = job.card_video_attempts ?? 0;
+
+    if (attempts >= CARD_VIDEO_MAX_ATTEMPTS && job.card_video_b64 !== "DONE") {
+      return res.status(429).json({ status: "limit_reached", message: "Card video generation limit reached. Contact support." });
+    }
+    if (job.card_video_b64 === "ERROR") {
+      if (attempts >= CARD_VIDEO_MAX_ATTEMPTS) {
+        return res.status(429).json({ status: "limit_reached", message: "Card video generation limit reached. Contact support." });
+      }
+      return res.status(500).json({ status: "error", error: job.card_video_error ?? "Card video generation failed" });
+    }
+
+    const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
+    const productVideoPath = path.join(videosDir, `${job.public_id}_p.mp4`);
+
+    try {
+      const stat = await fsPromises.stat(productVideoPath);
+      res.setHeader("Content-Type", "video/mp4");
+      res.setHeader("Content-Disposition", `attachment; filename="solara-city-id-card.mp4"`);
+      res.setHeader("Content-Length", String(stat.size));
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      createReadStream(productVideoPath).pipe(res);
+    } catch {
+      if (!cardVideoGenInProgress.has(job.id)) {
+        cardVideoGenInProgress.add(job.id);
+        generateCardProductVideo(job.id)
+          .catch(e => console.error("[card-video] On-demand generation failed:", e))
+          .finally(() => cardVideoGenInProgress.delete(job.id));
+      }
+      res.status(202).json({ status: "generating" });
+    }
+  });
+
+  // Card product-shot video status
+  app.get("/api/public/:publicId/card-video-status", jobLimiter, (req: any, res: any) => {
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job) return res.status(404).json({ error: "Not found" });
+    res.json({
+      card_video_b64: job.card_video_b64,
+      card_video_attempts: job.card_video_attempts ?? 0,
+      card_video_error: job.card_video_error,
+      generating: cardVideoGenInProgress.has(job.id),
     });
   });
 

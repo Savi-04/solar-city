@@ -15,6 +15,12 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   const videoPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Card product-shot video state (independent of character video)
+  const [cardVideoState, setCardVideoState] = useState<'idle' | 'generating' | 'timeout' | 'error' | 'limit'>('idle');
+  const [cardTimerSecsLeft, setCardTimerSecsLeft] = useState<number>(300);
+  const cardVideoPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cardTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const cardRef = useRef<HTMLDivElement>(null);
 
   const mouseX = useMotionValue(0.5);
@@ -157,6 +163,8 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   useEffect(() => () => {
     if (videoPollRef.current) clearInterval(videoPollRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
+    if (cardVideoPollRef.current) clearInterval(cardVideoPollRef.current);
+    if (cardTimerRef.current) clearInterval(cardTimerRef.current);
   }, []);
 
   const triggerDownload = (blob: Blob) => {
@@ -235,6 +243,83 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       if (s.video_b64 === "ERROR" || (s.video_attempts ?? 0) >= 5) {
         stopTimers();
         setVideoState((s.video_attempts ?? 0) >= 5 ? 'limit' : 'error');
+      }
+    }, 5000);
+  }
+
+  async function handleDownloadCardVideo() {
+    if (!id && !jobId) return;
+    const publicId = id || jobId;
+
+    if (cardVideoPollRef.current) { clearInterval(cardVideoPollRef.current); cardVideoPollRef.current = null; }
+    if (cardTimerRef.current) { clearInterval(cardTimerRef.current); cardTimerRef.current = null; }
+
+    // Check if already generated
+    const status = await fetch(`/api/public/${publicId}/card-video-status`).then(r => r.json()).catch(() => null);
+
+    if (status?.card_video_b64 === "DONE") {
+      setCardVideoState('generating');
+      const res = await fetch(`/api/public/${publicId}/card-video.mp4`).catch(() => null);
+      if (res?.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'solara-city-id-card.mp4';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+        setCardVideoState('idle');
+      } else {
+        setCardVideoState('error');
+      }
+      return;
+    }
+
+    if ((status?.card_video_attempts ?? 0) >= 3 && status?.card_video_b64 !== "DONE") {
+      setCardVideoState('limit');
+      return;
+    }
+
+    // Not done yet — show 5-min countdown, kick off generation, poll status
+    setCardTimerSecsLeft(300);
+    setCardVideoState('generating');
+    const startedAt = Date.now();
+
+    // Kick off generation via endpoint (it deduplicates internally)
+    fetch(`/api/public/${publicId}/card-video.mp4`).catch(() => {});
+
+    cardTimerRef.current = setInterval(() => {
+      const left = Math.max(0, 300 - Math.floor((Date.now() - startedAt) / 1000));
+      setCardTimerSecsLeft(left);
+      if (left === 0) {
+        if (cardTimerRef.current) { clearInterval(cardTimerRef.current); cardTimerRef.current = null; }
+        setCardVideoState(prev => prev === 'generating' ? 'timeout' : prev);
+      }
+    }, 1000);
+
+    cardVideoPollRef.current = setInterval(async () => {
+      const s = await fetch(`/api/public/${publicId}/card-video-status`).then(r => r.json()).catch(() => null);
+      if (!s) return;
+
+      if (s.card_video_b64 === "DONE") {
+        if (cardVideoPollRef.current) { clearInterval(cardVideoPollRef.current); cardVideoPollRef.current = null; }
+        if (cardTimerRef.current) { clearInterval(cardTimerRef.current); cardTimerRef.current = null; }
+        const res = await fetch(`/api/public/${publicId}/card-video.mp4`).catch(() => null);
+        if (res?.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = url; a.download = 'solara-city-id-card.mp4';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 15000);
+          setCardVideoState('idle');
+        } else {
+          setCardVideoState('error');
+        }
+        return;
+      }
+
+      if (s.card_video_b64 === "ERROR" || (s.card_video_attempts ?? 0) >= 3) {
+        if (cardVideoPollRef.current) { clearInterval(cardVideoPollRef.current); cardVideoPollRef.current = null; }
+        if (cardTimerRef.current) { clearInterval(cardTimerRef.current); cardTimerRef.current = null; }
+        setCardVideoState((s.card_video_attempts ?? 0) >= 3 ? 'limit' : 'error');
       }
     }, 5000);
   }
@@ -492,6 +577,66 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
                 <>
                   <span style={{ fontSize: "15px" }}>⬇</span>
                   <span>Download for TikTok</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Card product-shot download — cinematic water-droplet video, on demand */}
+          {cardVideoState === 'limit' ? (
+            <div
+              className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full max-w-[280px] text-center"
+              style={{ background: "rgba(255,68,68,0.06)", border: "1px solid rgba(255,68,68,0.25)", color: "rgba(255,68,68,0.6)" }}
+            >
+              Card video limit reached — contact support
+            </div>
+          ) : cardVideoState === 'timeout' ? (
+            <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
+              <div
+                className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full text-center"
+                style={{ background: "rgba(255,160,0,0.06)", border: "1px solid rgba(255,160,0,0.2)", color: "rgba(255,160,0,0.65)", lineHeight: "1.5" }}
+              >
+                ⏳ Still rendering — tap to check if ready
+              </div>
+              <button
+                onClick={handleDownloadCardVideo}
+                className="font-mono text-[9px] tracking-[0.25em] uppercase"
+                style={{ color: "rgba(255,255,255,0.25)" }}
+              >
+                ↺ check status
+              </button>
+            </div>
+          ) : cardVideoState === 'generating' ? (
+            <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
+              <div
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[12px] w-full"
+                style={{ background: "linear-gradient(180deg, #0d0a18 0%, #080614 100%)", border: "1px solid rgba(180,120,255,0.18)", color: "rgba(180,120,255,0.55)", cursor: "wait" }}
+              >
+                <span style={{ display: "inline-block", animation: "spin-slow 1.2s linear infinite" }}>◌</span>
+                <span>{Math.floor(cardTimerSecsLeft / 60)}:{String(cardTimerSecsLeft % 60).padStart(2, '0')} — rendering card…</span>
+              </div>
+              <div style={{ width: "100%", maxWidth: "280px", height: "2px", background: "rgba(180,120,255,0.08)", borderRadius: "1px", overflow: "hidden" }}>
+                <div style={{ height: "100%", background: "rgba(180,120,255,0.45)", borderRadius: "1px", transition: "width 1s linear", width: `${((300 - cardTimerSecsLeft) / 300) * 100}%` }} />
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleDownloadCardVideo}
+              className="inline-flex items-center justify-center space-x-2 rounded-xl px-7 py-3.5 font-black tracking-[0.14em] text-[13px] transition-all w-full max-w-[280px]"
+              style={{
+                background: "linear-gradient(180deg, #0d0a18 0%, #080614 100%)",
+                border: `1px solid rgba(180,120,255,${cardVideoState === 'error' ? '0.2' : '0.35'})`,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04), 0 0 20px rgba(140,80,255,0.08)",
+                color: cardVideoState === 'error' ? "#ffaa00" : "#b478ff",
+                cursor: "pointer",
+              }}
+            >
+              {cardVideoState === 'error' ? (
+                <span>⚠ Retry Card Video</span>
+              ) : (
+                <>
+                  <span style={{ fontSize: "15px" }}>✦</span>
+                  <span>Share Card</span>
                 </>
               )}
             </button>
