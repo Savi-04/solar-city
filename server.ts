@@ -530,7 +530,10 @@ async function startServer() {
   // ─── Video generation (fal.ai Kling O3 — VIDEO 3.0 Omni) ───────────────────
   async function generateCardVideo(jobId: string): Promise<void> {
     const job = getJob(jobId);
-    if (!job?.bg_layer_b64 || !job?.portrait_layer_b64 || !job?.frame_layer_b64 || !job?.text_layer_b64 || !job.public_id) return;
+    if (!job?.bg_layer_b64 || !job?.portrait_layer_b64 || !job?.frame_layer_b64 || !job?.text_layer_b64 || !job.public_id) {
+      saveVideoError(jobId, "Card layers not found in DB — card may be incomplete");
+      return;
+    }
 
     const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
     await fsPromises.mkdir(videosDir, { recursive: true });
@@ -578,6 +581,9 @@ async function startServer() {
     console.log(`[video] card → ${cardUrl}`);
 
     // ── Call fal.ai Kling O3 Standard reference-to-video ────────────────────
+    // Increment here — only counts when we actually hit the API, not on triggers/retries
+    incrementVideoAttempts(jobId);
+
     // Only portrait as @Image1 — card is overlaid exactly via FFmpeg post-process
     const PROMPT = `Full-body wide shot, vertical 9:16 frame. @Image1 stands 4 to 5 meters from the camera — the entire body is visible from shoes to slightly above the head. The subject occupies roughly 55 percent of the frame height. Significant environment is visible above the head, below the feet, and on both sides.
 
@@ -1053,7 +1059,6 @@ Style: Cinematic game trailer quality. Rich saturated color grade — warm amber
     } catch {
       // Video not yet on disk — trigger on-demand if card is ready and not already running
       if (job.status === "DONE" && job.bg_layer_b64 && !videoGenInProgress.has(job.id)) {
-        incrementVideoAttempts(job.id);
         videoGenInProgress.add(job.id);
         generateCardVideo(job.id)
           .catch(e => console.error("[video] On-demand generation failed:", e))
@@ -1061,6 +1066,18 @@ Style: Cinematic game trailer quality. Rich saturated color grade — warm amber
       }
       res.status(202).json({ status: "generating" });
     }
+  });
+
+  // Video status — returns current state + error without serving the file
+  app.get("/api/public/:publicId/video-status", jobLimiter, (req: any, res: any) => {
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job) return res.status(404).json({ error: "Not found" });
+    res.json({
+      video_b64: job.video_b64,
+      video_attempts: job.video_attempts ?? 0,
+      video_error: job.video_error,
+      generating: videoGenInProgress.has(job.id),
+    });
   });
 
   // OG image — flat composite of the demo card for social link previews
