@@ -584,16 +584,18 @@ async function startServer() {
     // Increment here — only counts when we actually hit the API, not on triggers/retries
     incrementVideoAttempts(jobId);
 
-    // Keep prompt under ~1500 chars — Kling rejects longer prompts with 422
-    const PROMPT = `Full-body wide shot, 9:16 vertical frame. @Image1 stands in the LEFT THIRD of the frame only — face and full body visible. The RIGHT TWO-THIRDS of frame is empty space showing only the background. Large gap between character and right edge.
+    // Keep prompt under ~2000 chars — Kling rejects longer prompts with 422
+    const PROMPT = `Full-body wide shot, 9:16 vertical frame. @Image1 stands in the LEFT THIRD of the frame only — face and full body clearly visible. The RIGHT TWO-THIRDS shows the garage background. Large gap between character and right edge.
 
-Character: COD-style AAA military game character. Tactical dark outfit. Face must match the portrait reference exactly — realistic skin texture, no smoothing, no beautification, no artistic interpretation. Neutral, confident stance. Body completely still.
+Character: COD-style AAA military game character. Tactical dark outfit. Face must match the portrait reference exactly — realistic skin texture, no smoothing, no beautification, no artistic interpretation. Neutral, confident stance. Body completely still throughout entire clip.
 
-Background: Dark indoor garage. Three luxury vehicles in the background — a sleek sports car on the left, a massive monster truck in the center, a luxury sedan on the right. The back wall displays SMG assault rifles mounted on display racks, barely visible in the dark. Very thin wisps of natural transparent smoke drift slowly through the air. Dark atmosphere, shadows everywhere.
+Background: Indoor private garage. Three luxury vehicles — sleek sports car (left), massive monster truck (center), luxury sedan (right). SMG rifles mounted on display racks on the back wall. Very thin wisps of transparent smoke drift slowly through the air. Cinematic moody atmosphere.
 
-Lighting: Studio professional three-point setup. Key light from upper-right hitting character and vehicles. Rim light around character for hero silhouette separation. Dramatic fills on vehicles and wall. Everything ultra-realistic, AAA game production quality. No overexposure.
+Lighting: Powerful professional studio three-point setup. Strong bright key light from upper-right falls directly on character and vehicles — every subject is clearly and boldly lit. Warm amber fill lights illuminate vehicle bodywork. Crisp white rim light outlines character silhouette against background. All elements clearly visible: character, cars, gun wall. Cinematic mood comes from contrast between lit subjects and dark negative space — NOT from underexposure. No dark faces. No crushed blacks on character.
 
-Camera starts slightly left of center and pans VERY SLOWLY rightward across the full scene over the entire 10 seconds. Smooth continuous pan, no cuts, no camera shake. Dark tone throughout.`;
+Camera starts slightly left of center and pans VERY SLOWLY rightward over the full 10 seconds. Smooth continuous pan, no cuts, no camera shake.
+
+Ultra-realistic AAA game production quality render.`;
 
     const result = await fal.subscribe("fal-ai/kling-video/o3/standard/reference-to-video", {
       input: {
@@ -639,27 +641,21 @@ Camera starts slightly left of center and pans VERY SLOWLY rightward across the 
       const vW: number = vStream?.width ?? 1080;
       const vH: number = vStream?.height ?? 1920;
 
-      // Card on the RIGHT side — center at 78% x, 40% y
-      // Glow: split → gaussian blur → screen blend creates backlit 3D glow
-      // Pulse: scale with sin(t) animates z-axis jump (~±4% every 1.8s)
-      const cardW = Math.round(vW * 0.28);
-      const cardCX = Math.round(vW * 0.78);  // center x of card
-      const cardCY = Math.round(vH * 0.40);  // center y of card
+      // Card on the RIGHT side — center at 76% x, 40% y
+      const cardW = Math.round(vW * 0.30);
+      const cardCX = Math.round(vW * 0.76);
+      const cardCY = Math.round(vH * 0.40);
 
       const fc =
-        `[1:v]scale=${cardW}:-1[raw];` +
-        `[raw]split=2[fg][gb];` +
-        `[gb]gblur=sigma=18[glow];` +
-        `[fg][glow]blend=all_mode=screen:all_opacity=0.5[lit];` +
-        `[lit]scale=w='iw*(1+0.04*sin(2*PI*t/1.8))':h='ih*(1+0.04*sin(2*PI*t/1.8))':eval=frame[pulse];` +
-        `[0:v][pulse]overlay=x='${cardCX}-overlay_w/2':y='${cardCY}-overlay_h/2':shortest=1`;
+        `[1:v]scale=${cardW}:-1[card];` +
+        `[0:v][card]overlay=x='${cardCX}-overlay_w/2':y='${cardCY}-overlay_h/2':shortest=1`;
 
       await execAsync(
         `ffmpeg -y -i "${rawVideoPath}" -loop 1 -i "${cardJpegPath}" ` +
         `-filter_complex "${fc}" ` +
-        `-c:v libx264 -preset fast -crf 20 -c:a copy -movflags +faststart "${videoPath}"`
+        `-c:v libx264 -preset fast -crf 20 -an -movflags +faststart "${videoPath}"`
       );
-      console.log(`[video] Card overlay applied (right side, glow+pulse) → ${videoPath}`);
+      console.log(`[video] Card overlay applied (right side) → ${videoPath}`);
     } catch (ffmpegErr: any) {
       // FFmpeg failed — use raw Kling video as fallback
       console.error("[video] FFmpeg overlay failed, using raw video:", ffmpegErr?.message);
@@ -996,13 +992,17 @@ Camera starts slightly left of center and pans VERY SLOWLY rightward across the 
   });
 
   // Admin: unlock video generation for a card (resets attempt counter + error state)
-  app.post("/api/admin/video-unlock/:publicId", (req: any, res: any) => {
+  app.post("/api/admin/video-unlock/:publicId", async (req: any, res: any) => {
     const secret = req.headers["x-admin-secret"] as string | undefined;
     if (!secret || secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Forbidden" });
     const job = getJobByPublicId(req.params.publicId);
     if (!job) return res.status(404).json({ error: "Not found" });
     resetVideoAttempts(job.id);
-    res.json({ ok: true, message: "Video attempts reset to 0" });
+    // Delete video file from disk so it regenerates from scratch, not re-serves the old bad video
+    const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
+    const videoFile = path.join(videosDir, `${job.public_id}.mp4`);
+    await fsPromises.unlink(videoFile).catch(() => {});
+    res.json({ ok: true, message: "Video attempts reset and video file deleted — will regenerate on next request" });
   });
 
   // Full-resolution card JPEG for OG meta tag images (800×1066)
