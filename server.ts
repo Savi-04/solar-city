@@ -585,17 +585,15 @@ async function startServer() {
     incrementVideoAttempts(jobId);
 
     // Keep prompt under ~1500 chars — Kling rejects longer prompts with 422
-    const PROMPT = `Full-body wide shot, 9:16 vertical frame. @Image1 stands 4 meters from camera — full body visible from feet to above head, occupying about 55% of frame height. Significant background visible above, below, and on both sides.
+    const PROMPT = `Full-body wide shot, 9:16 vertical frame. @Image1 stands in the LEFT THIRD of the frame only — face and full body visible. The RIGHT TWO-THIRDS of frame is empty space showing only the background. Large gap between character and right edge.
 
-Both arms extended forward at chest height, both hands open and flat facing upward, presenting something to the camera like displaying an earned prize. Head held high, chin slightly lifted. Proud, confident expression. Chest out, power stance. Arms stay extended and still for the entire clip.
+Character: COD-style AAA military game character. Tactical dark outfit. Face must match the portrait reference exactly — realistic skin texture, no smoothing, no beautification, no artistic interpretation. Neutral, confident stance. Body completely still.
 
-Subject's face, skin, hair, and all features pixel-identical to the reference. No redrawing, no beautification, no morphing.
+Background: Dark indoor garage. Three luxury vehicles in the background — a sleek sports car on the left, a massive monster truck in the center, a luxury sedan on the right. The back wall displays SMG assault rifles mounted on display racks, barely visible in the dark. Very thin wisps of natural transparent smoke drift slowly through the air. Dark atmosphere, shadows everywhere.
 
-Background: Rooftop observation deck of a massive skyscraper at magic hour. Clean concrete floor. Sprawling modern city visible in every direction — dense grid of towers, bridges, rivers. Sky transitions from deep blue overhead to warm amber and orange near the horizon. Dramatic god rays cutting through atmospheric haze. No neon. No holographics. Premium open-world game cinematic aesthetic — grand scale.
+Lighting: Studio professional three-point setup. Key light from upper-right hitting character and vehicles. Rim light around character for hero silhouette separation. Dramatic fills on vehicles and wall. Everything ultra-realistic, AAA game production quality. No overexposure.
 
-Warm golden rim light from upper-left creates a hero glow around the subject's shoulders. Soft front fill keeps face visible. Low-angle slow crane drift from slightly below eye level to eye level. Background city in soft bokeh.
-
-Wind moves hair and clothing throughout. No speaking, no gesturing, no repositioning. Environment-only motion.`;
+Camera starts slightly left of center and pans VERY SLOWLY rightward across the full scene over the entire 10 seconds. Smooth continuous pan, no cuts, no camera shake. Dark tone throughout.`;
 
     const result = await fal.subscribe("fal-ai/kling-video/o3/standard/reference-to-video", {
       input: {
@@ -641,17 +639,27 @@ Wind moves hair and clothing throughout. No speaking, no gesturing, no repositio
       const vW: number = vStream?.width ?? 1080;
       const vH: number = vStream?.height ?? 1920;
 
-      // Card scaled to 42% of video width, centred horizontally, at 54% vertical
-      const cardW = Math.round(vW * 0.38);
-      const cardX = Math.round((vW - cardW) / 2);
-      const cardY = Math.round(vH * 0.42);
+      // Card on the RIGHT side — center at 78% x, 40% y
+      // Glow: split → gaussian blur → screen blend creates backlit 3D glow
+      // Pulse: scale with sin(t) animates z-axis jump (~±4% every 1.8s)
+      const cardW = Math.round(vW * 0.28);
+      const cardCX = Math.round(vW * 0.78);  // center x of card
+      const cardCY = Math.round(vH * 0.40);  // center y of card
+
+      const fc =
+        `[1:v]scale=${cardW}:-1[raw];` +
+        `[raw]split=2[fg][gb];` +
+        `[gb]gblur=sigma=18[glow];` +
+        `[fg][glow]blend=all_mode=screen:all_opacity=0.5[lit];` +
+        `[lit]scale=w='iw*(1+0.04*sin(2*PI*t/1.8))':h='ih*(1+0.04*sin(2*PI*t/1.8))':eval=frame[pulse];` +
+        `[0:v][pulse]overlay=x='${cardCX}-overlay_w/2':y='${cardCY}-overlay_h/2':shortest=1`;
 
       await execAsync(
         `ffmpeg -y -i "${rawVideoPath}" -loop 1 -i "${cardJpegPath}" ` +
-        `-filter_complex "[1:v]scale=${cardW}:-1[card];[0:v][card]overlay=${cardX}:${cardY}:shortest=1" ` +
+        `-filter_complex "${fc}" ` +
         `-c:v libx264 -preset fast -crf 20 -c:a copy -movflags +faststart "${videoPath}"`
       );
-      console.log(`[video] Card overlay applied → ${videoPath}`);
+      console.log(`[video] Card overlay applied (right side, glow+pulse) → ${videoPath}`);
     } catch (ffmpegErr: any) {
       // FFmpeg failed — use raw Kling video as fallback
       console.error("[video] FFmpeg overlay failed, using raw video:", ffmpegErr?.message);
