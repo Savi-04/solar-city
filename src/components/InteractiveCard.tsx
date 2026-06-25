@@ -223,8 +223,9 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       return;
     }
 
-    if ((status?.video_attempts ?? 0) >= 5 && status?.video_b64 !== "DONE") {
-      setVideoState('limit');
+    // Failed too many times on the server — nothing to wait for
+    if ((status?.fail_count ?? 0) >= 5) {
+      setVideoState('error');
       return;
     }
 
@@ -247,7 +248,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       }
     }, 1000);
 
-    // Poll video-status (cheaper than polling video.mp4, doesn't risk re-triggering generation)
+    // Poll video-status every 5s — server also retries generation on each poll
     videoPollRef.current = setInterval(async () => {
       const s = await fetch(`/api/public/${publicId}/video-status`).then(r => r.json()).catch(() => null);
       if (!s) return;
@@ -261,9 +262,10 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
         return;
       }
 
-      if (s.video_b64 === "ERROR" || (s.video_attempts ?? 0) >= 5) {
+      // Stop only if server-side failure cap is reached — transient errors keep retrying
+      if ((s.fail_count ?? 0) >= 5) {
         stopTimers();
-        setVideoState((s.video_attempts ?? 0) >= 5 ? 'limit' : 'error');
+        setVideoState('error');
       }
     }, 5000);
   }
@@ -294,17 +296,15 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       return;
     }
 
-    if ((status?.card_video_attempts ?? 0) >= 3 && status?.card_video_b64 !== "DONE") {
-      setCardVideoState('limit');
+    if ((status?.fail_count ?? 0) >= 5) {
+      setCardVideoState('error');
       return;
     }
 
-    // Not done yet — show 5-min countdown, kick off generation, poll status
+    // Not done yet — show 5-min countdown and poll status
     setCardTimerSecsLeft(300);
     setCardVideoState('generating');
     const startedAt = Date.now();
-
-    // Generation is triggered server-side by card-video-status polling.
 
     cardTimerRef.current = setInterval(() => {
       const left = Math.max(0, 300 - Math.floor((Date.now() - startedAt) / 1000));
@@ -336,10 +336,10 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
         return;
       }
 
-      if (s.card_video_b64 === "ERROR" || (s.card_video_attempts ?? 0) >= 3) {
+      if ((s.fail_count ?? 0) >= 5) {
         if (cardVideoPollRef.current) { clearInterval(cardVideoPollRef.current); cardVideoPollRef.current = null; }
         if (cardTimerRef.current) { clearInterval(cardTimerRef.current); cardTimerRef.current = null; }
-        setCardVideoState((s.card_video_attempts ?? 0) >= 3 ? 'limit' : 'error');
+        setCardVideoState('error');
       }
     }, 5000);
   }
@@ -536,7 +536,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
                 className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full text-center"
                 style={{ background: "rgba(255,160,0,0.06)", border: "1px solid rgba(255,160,0,0.22)", color: "rgba(255,160,0,0.7)", lineHeight: "1.6" }}
               >
-                Check your purchase confirmation email and click the card link inside it to unlock downloads on this device
+                Check your purchase confirmation email and click the card link inside it to unlock downloads on this device. Lost the email? Contact <span style={{ color: "#ffc94a", textDecoration: "underline" }}>kishanbro8@gmail.com</span>
               </div>
               <button
                 onClick={() => setVideoState('idle')}
@@ -546,25 +546,22 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
                 ↺ try again
               </button>
             </div>
-          ) : videoState === 'limit' ? (
+          ) : videoState === 'error' ? (
             <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
               <div
-                className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full"
-                style={{ background: "rgba(255,68,68,0.06)", border: "1px solid rgba(255,68,68,0.25)", color: "rgba(255,68,68,0.6)" }}
+                className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full text-center"
+                style={{ background: "rgba(255,68,68,0.06)", border: "1px solid rgba(255,68,68,0.25)", color: "rgba(255,68,68,0.6)", lineHeight: "1.6" }}
               >
-                <span>Generation limit reached — contact support</span>
+                Generation failed — email <span style={{ color: "#ff6b6b", textDecoration: "underline" }}>kishanbro8@gmail.com</span> for help
               </div>
-              <button
-                onClick={async () => {
-                  const publicId = id || jobId;
-                  const s = await fetch(`/api/public/${publicId}/video-status`).then(r => r.json()).catch(() => null);
-                  if (s && (s.video_attempts ?? 0) < 5 && s.video_b64 !== 'ERROR') setVideoState('idle');
-                }}
-                className="font-mono text-[9px] tracking-[0.25em] uppercase"
-                style={{ color: "rgba(255,255,255,0.2)" }}
-              >
-                ↺ check if unlocked
-              </button>
+              <button onClick={() => setVideoState('idle')} className="font-mono text-[9px] tracking-[0.25em] uppercase" style={{ color: "rgba(255,255,255,0.2)" }}>↺ try again</button>
+            </div>
+          ) : videoState === 'limit' ? (
+            <div
+              className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full max-w-[280px] text-center"
+              style={{ background: "rgba(255,160,0,0.06)", border: "1px solid rgba(255,160,0,0.22)", color: "rgba(255,160,0,0.7)", lineHeight: "1.6" }}
+            >
+              Video already generated — to re-download email <span style={{ color: "#ffc94a", textDecoration: "underline" }}>kishanbro8@gmail.com</span>
             </div>
           ) : videoState === 'timeout' ? (
             <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
@@ -603,28 +600,32 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
                 background: "linear-gradient(180deg, #0a1a10 0%, #061009 100%)",
                 border: "1px solid rgba(0,255,127,0.38)",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 22px rgba(0,255,127,0.12)",
-                color: videoState === 'error' ? "#ffaa00" : "#00ff7f",
+                color: "#00ff7f",
                 cursor: "pointer",
               }}
             >
-              {videoState === 'error' ? (
-                <span>⚠ Retry Download</span>
-              ) : (
-                <>
-                  <span style={{ fontSize: "15px" }}>⬇</span>
-                  <span>Download for TikTok</span>
-                </>
-              )}
+              <span style={{ fontSize: "15px" }}>⬇</span>
+              <span>Download for TikTok</span>
             </button>
           )}
 
           {/* Card product-shot download — cinematic water-droplet video, on demand */}
-          {cardVideoState === 'limit' ? (
+          {cardVideoState === 'error' ? (
+            <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
+              <div
+                className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full text-center"
+                style={{ background: "rgba(255,68,68,0.06)", border: "1px solid rgba(255,68,68,0.25)", color: "rgba(255,68,68,0.6)", lineHeight: "1.6" }}
+              >
+                Generation failed — email <span style={{ color: "#ff6b6b", textDecoration: "underline" }}>kishanbro8@gmail.com</span> for help
+              </div>
+              <button onClick={() => setCardVideoState('idle')} className="font-mono text-[9px] tracking-[0.25em] uppercase" style={{ color: "rgba(255,255,255,0.2)" }}>↺ try again</button>
+            </div>
+          ) : cardVideoState === 'limit' ? (
             <div
               className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full max-w-[280px] text-center"
-              style={{ background: "rgba(255,68,68,0.06)", border: "1px solid rgba(255,68,68,0.25)", color: "rgba(255,68,68,0.6)" }}
+              style={{ background: "rgba(255,160,0,0.06)", border: "1px solid rgba(255,160,0,0.22)", color: "rgba(255,160,0,0.7)", lineHeight: "1.6" }}
             >
-              Card video limit reached — contact support
+              Video already generated — to re-download email <span style={{ color: "#ffc94a", textDecoration: "underline" }}>kishanbro8@gmail.com</span>
             </div>
           ) : cardVideoState === 'timeout' ? (
             <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">

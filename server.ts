@@ -20,6 +20,12 @@ const execAsync = promisify(exec);
 fal.config({ credentials: process.env.FAL_KEY });
 const videoGenInProgress = new Set<string>();     // character video — prevents double-charging
 const cardVideoGenInProgress = new Set<string>(); // card product video
+// Tracks API failure count per job (in-memory, resets on deploy). Prevents infinite billing
+// on permanent errors (content policy etc.) without penalising users for transient failures.
+const videoFailCounts = new Map<string, number>();
+const cardVideoFailCounts = new Map<string, number>();
+const VIDEO_FAIL_CAP = 5;
+const CARD_VIDEO_FAIL_CAP = 5;
 import {
   db,
   createJob,
@@ -626,9 +632,6 @@ async function startServer() {
     console.log(`[video] card → ${cardUrl}`);
 
     // ── Call fal.ai Kling O3 Standard reference-to-video ────────────────────
-    // Increment here — only counts when we actually hit the API, not on triggers/retries
-    incrementVideoAttempts(jobId);
-
     // Keep prompt under ~2000 chars — Kling rejects longer prompts with 422
     const PROMPT = `Full-body shot, 9:16 vertical frame. @Image1 stands center-left, closer to camera, filling the lower two-thirds of the frame. Face and full body prominently visible and sharp.
 
@@ -708,10 +711,12 @@ Camera pans VERY SLOWLY rightward over 10 seconds. Smooth, no cuts, no shake. Ul
 
     console.log(`[video] Done → ${videoPath}`);
     saveVideoOnly(jobId, "DONE");
+    incrementVideoAttempts(jobId); // counts only on successful delivery
     } catch (err: any) {
       const detail = err?.body?.detail ? JSON.stringify(err.body.detail) : '';
       const msg = `${err?.message || String(err)}${detail ? ` | detail: ${detail}` : ''}`;
       console.error(`[video] generateCardVideo FAILED for ${jobId}:`, msg);
+      videoFailCounts.set(jobId, (videoFailCounts.get(jobId) ?? 0) + 1);
       saveVideoError(jobId, msg);
       throw err;
     }
@@ -748,8 +753,6 @@ Camera pans VERY SLOWLY rightward over 10 seconds. Smooth, no cuts, no shake. Ul
       console.log(`[card-video] Uploading card image for ${jobId}...`);
       const cardUrl = await fal.storage.upload(new Blob([fullCardBuf], { type: "image/jpeg" }));
       console.log(`[card-video] card → ${cardUrl}`);
-
-      incrementCardVideoAttempts(jobId);
 
       const PRODUCT_PROMPT = `GoPro chest-mount first-person POV shot. A real human hand with natural skin and fingers enters frame from below, palm facing up. A playing card rests on a dark polished surface — it shares the same geometric patterns, border design and color palette as the reference card but the printed text fields are blank, only the background artwork is visible.
 
@@ -790,11 +793,13 @@ Hyper-realistic, cinematic quality, smooth motion.`;
 
       console.log(`[card-video] Done → ${productVideoPath} (${videoBuf.length} bytes)`);
       saveCardVideoOnly(jobId, "DONE");
+      incrementCardVideoAttempts(jobId); // counts only on successful delivery
     } catch (err: any) {
       const detail = err?.body?.detail ? JSON.stringify(err.body.detail) : '';
       const msg = `${err?.message || String(err)}${detail ? ` | detail: ${detail}` : ''}`;
       console.error(`[card-video] generateCardProductVideo FAILED for ${jobId}:`, msg);
       saveCardVideoError(jobId, msg);
+      cardVideoFailCounts.set(jobId, (cardVideoFailCounts.get(jobId) ?? 0) + 1);
       throw err;
     }
   }
@@ -1218,19 +1223,19 @@ Hyper-realistic, cinematic quality, smooth motion.`;
   });
 
   // Video status — returns current state + error without serving the file.
-  // Also triggers generation if the video hasn't started yet (token-free so polling always works).
+  // Also triggers/retries generation token-free so polling always works.
+  // Attempts only increment on SUCCESS — failed generations don't consume the user's 1 chance.
   app.get("/api/public/:publicId/video-status", jobLimiter, (req: any, res: any) => {
     const job = getJobByPublicId(req.params.publicId);
     if (!job) return res.status(404).json({ error: "Not found" });
 
     const attempts = job.video_attempts ?? 0;
-    const maxAttempts = 5;
-    // Kick off generation if not done, not errored, not at limit, and not already running
+    const failCount = videoFailCounts.get(job.id) ?? 0;
+    // Retry as long as not delivered and under the API failure cap (even after an ERROR)
     if (
       job.status === "DONE" &&
       job.video_b64 !== "DONE" &&
-      job.video_b64 !== "ERROR" &&
-      attempts < maxAttempts &&
+      failCount < VIDEO_FAIL_CAP &&
       job.bg_layer_b64 &&
       !videoGenInProgress.has(job.id)
     ) {
@@ -1245,6 +1250,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
       video_attempts: attempts,
       video_error: job.video_error,
       generating: videoGenInProgress.has(job.id),
+      fail_count: failCount,
     });
   });
 
@@ -1288,18 +1294,17 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     }
   });
 
-  // Card product-shot video status — also triggers generation if not yet started.
+  // Card product-shot video status — also triggers/retries generation token-free.
   app.get("/api/public/:publicId/card-video-status", jobLimiter, (req: any, res: any) => {
     const job = getJobByPublicId(req.params.publicId);
     if (!job) return res.status(404).json({ error: "Not found" });
 
     const attempts = job.card_video_attempts ?? 0;
-    const maxAttempts = 3;
+    const failCount = cardVideoFailCounts.get(job.id) ?? 0;
     if (
       job.status === "DONE" &&
       job.card_video_b64 !== "DONE" &&
-      job.card_video_b64 !== "ERROR" &&
-      attempts < maxAttempts &&
+      failCount < CARD_VIDEO_FAIL_CAP &&
       job.bg_layer_b64 &&
       !cardVideoGenInProgress.has(job.id)
     ) {
@@ -1314,6 +1319,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
       card_video_attempts: attempts,
       card_video_error: job.card_video_error,
       generating: cardVideoGenInProgress.has(job.id),
+      fail_count: failCount,
     });
   });
 
