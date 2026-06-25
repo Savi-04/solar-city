@@ -34,7 +34,7 @@ const FEATURES = [
 
 export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isProcessingPayment, playerNumber, completeToken }: PreviewStepProps) {
   const [district, setDistrict] = useState<string | null>(null);
-  const localPrice = useCurrencyPrice();
+  const { price: localPrice, oldPrice } = useCurrencyPrice();
 
   const gumroadProductUrl = import.meta.env.VITE_GUMROAD_PRODUCT_URL as string | undefined;
   const completeUrl = typeof window !== "undefined"
@@ -183,7 +183,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
                   className="font-black tracking-[0.18em] text-[15px]"
                   style={{ color: "#ff2060", textShadow: "0 0 12px rgba(255,32,96,0.45)" }}
                 >
-                  GET MY CARD · {localPrice} →
+                  GET MY CARD · <span style={{ textDecoration: "line-through", opacity: 0.5, fontSize: "0.85em" }}>{oldPrice}</span> {localPrice} →
                 </span>
                 <span className="font-mono text-[10px] text-white/28 tracking-widest mt-1">One-time · Shareable link · Yours to keep</span>
               </span>

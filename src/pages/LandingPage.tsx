@@ -303,7 +303,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [demoReady, setDemoReady] = useState(false);
   const [soldOut, setSoldOut] = useState(false);
-  const localPrice = useCurrencyPrice();
+  const { price: localPrice, oldPrice } = useCurrencyPrice();
 
   // Check if demo card layers are ready
   useEffect(() => {
@@ -406,7 +406,10 @@ export default function LandingPage() {
 
               <div className="flex items-center space-x-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#00ff7f]" style={{ boxShadow: "0 0 5px #00ff7f" }} />
-                <span className="font-mono text-[10px] text-white/28 tracking-widest">{localPrice} · no account needed</span>
+                <span className="font-mono text-[10px] text-white/28 tracking-widest">
+                  <span style={{ textDecoration: "line-through", opacity: 0.5 }}>{oldPrice}</span>
+                  {" "}{localPrice} · no account needed
+                </span>
               </div>
             </motion.div>
 
@@ -531,12 +534,20 @@ export default function LandingPage() {
             }}
           >
             <p className="font-mono text-[9px] text-white/25 tracking-[0.4em] uppercase mb-3">One-time price</p>
-            <p
-              className="text-5xl font-black mb-1"
-              style={{ color: "#ff2060", textShadow: "0 0 24px rgba(255,32,96,0.35)" }}
-            >
-              {localPrice}
-            </p>
+            <div className="flex flex-col items-center mb-1">
+              <span
+                className="font-mono text-[14px]"
+                style={{ color: "rgba(255,255,255,0.3)", textDecoration: "line-through" }}
+              >
+                {oldPrice}
+              </span>
+              <p
+                className="text-5xl font-black"
+                style={{ color: "#ff2060", textShadow: "0 0 24px rgba(255,32,96,0.35)" }}
+              >
+                {localPrice}
+              </p>
+            </div>
             <p className="font-mono text-[11px] text-white/30 tracking-widest mb-6">No account. No subscription. Instant delivery.</p>
 
             <ul className="space-y-2 text-left mb-8">
