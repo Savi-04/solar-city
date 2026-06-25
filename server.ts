@@ -632,7 +632,7 @@ async function startServer() {
 
 CHARACTER CONSISTENCY — CRITICAL: Face, facial features, skin tone, hair, and every article of clothing must be reproduced IDENTICALLY from the portrait reference. Do not alter, substitute, redesign, or reinterpret any part of the outfit or appearance. The character looks exactly like the reference photo — only the lighting environment changes. Neutral confident stance, body completely still.
 
-Background: Indoor private garage. Three luxury vehicles — sleek sports car (left), massive monster truck (center), luxury sedan (right). SMG rifles mounted on the back wall. Thin wisps of transparent smoke drift slowly.
+Background: Indoor private garage. Three luxury vehicles — sleek sports car (left), massive monster truck (center), luxury sedan (right). Chrome shelving and neon-lit display cases line the back wall. Thin wisps of transparent smoke drift slowly.
 
 Lighting: Powerful three-point studio setup. Strong bright key light from upper-right illuminates character clearly — face fully lit, no shadows obscuring features. Warm fill on vehicles. Crisp rim light separates character from background. No dark faces. No crushed blacks.
 
@@ -1046,7 +1046,8 @@ Hyper-realistic, cinematic quality, smooth motion.`;
       SELECT id, status, name_input, city_input, district, player_number, public_id, buyer_email,
              substr(created_at, 1, 16) as created_at,
              CASE WHEN complete_token IS NOT NULL THEN 1 ELSE 0 END as has_token,
-             video_b64, COALESCE(video_attempts, 0) as video_attempts, video_error
+             video_b64, COALESCE(video_attempts, 0) as video_attempts, video_error,
+             card_video_b64, COALESCE(card_video_attempts, 0) as card_video_attempts, card_video_error
       FROM jobs WHERE id != 'demo-card-v7' ORDER BY created_at DESC LIMIT 100
     `).all();
     return res.json(jobs);
@@ -1136,6 +1137,17 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     const videoFile = path.join(videosDir, `${job.public_id}.mp4`);
     await fsPromises.unlink(videoFile).catch(() => {});
     res.json({ ok: true, message: "Video attempts reset and video file deleted — will regenerate on next request" });
+  });
+
+  app.post("/api/admin/card-video-unlock/:publicId", async (req: any, res: any) => {
+    const secret = req.headers["x-admin-secret"] as string | undefined;
+    if (!secret || secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: "Forbidden" });
+    const job = getJobByPublicId(req.params.publicId);
+    if (!job) return res.status(404).json({ error: "Not found" });
+    db.prepare('UPDATE jobs SET card_video_b64 = NULL, card_video_attempts = 0, card_video_error = NULL WHERE id = ?').run(job.id);
+    const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
+    await fsPromises.unlink(path.join(videosDir, `${job.public_id}_p.mp4`)).catch(() => {});
+    res.json({ ok: true, message: "Card video attempts reset and file deleted — will regenerate on next request" });
   });
 
   // Full-resolution card JPEG for OG meta tag images (800×1066)
