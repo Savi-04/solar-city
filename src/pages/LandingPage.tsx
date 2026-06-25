@@ -406,9 +406,11 @@ export default function LandingPage() {
 
               <div className="flex items-center space-x-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#00ff7f]" style={{ boxShadow: "0 0 5px #00ff7f" }} />
-                <span className="font-mono text-[10px] text-white/28 tracking-widest">
-                  <span style={{ textDecoration: "line-through", opacity: 0.5 }}>{oldPrice}</span>
-                  {" "}{localPrice} · no account needed
+                <span className="font-mono text-[10px] tracking-widest">
+                  <span style={{ textDecoration: "line-through", color: "rgba(255,255,255,0.38)" }}>{oldPrice}</span>
+                  {" "}
+                  <span style={{ color: "#ff2060" }}>{localPrice}</span>
+                  <span style={{ color: "rgba(255,255,255,0.38)" }}> · no account needed</span>
                 </span>
               </div>
             </motion.div>
@@ -536,8 +538,8 @@ export default function LandingPage() {
             <p className="font-mono text-[9px] text-white/25 tracking-[0.4em] uppercase mb-3">One-time price</p>
             <div className="flex flex-col items-center mb-1">
               <span
-                className="font-mono text-[14px]"
-                style={{ color: "rgba(255,255,255,0.3)", textDecoration: "line-through" }}
+                className="font-mono text-[18px] tracking-wide"
+                style={{ color: "rgba(255,255,255,0.55)", textDecoration: "line-through" }}
               >
                 {oldPrice}
               </span>
