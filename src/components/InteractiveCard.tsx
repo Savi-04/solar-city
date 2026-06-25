@@ -159,6 +159,28 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     };
   }, [activeId, standalone, navigate]);
 
+  // Capture ?owner= token from URL, store in localStorage, then clean the URL.
+  // This lets the owner download videos from any future visit on this device
+  // without leaking the token when they share the address bar URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ownerToken = params.get('owner');
+    if (ownerToken && activeId) {
+      localStorage.setItem(`dl_token_${activeId}`, ownerToken);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [activeId]);
+
+  function getOwnerToken(): string | null {
+    if (!activeId) return null;
+    return localStorage.getItem(`dl_token_${activeId}`);
+  }
+
+  function withOwner(url: string): string {
+    const token = getOwnerToken();
+    return token ? `${url}?owner=${encodeURIComponent(token)}` : url;
+  }
+
   // Clean up video poll on unmount
   useEffect(() => () => {
     if (videoPollRef.current) clearInterval(videoPollRef.current);
@@ -194,8 +216,9 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
 
     if (status?.video_b64 === "DONE") {
       setVideoState('generating');
-      const res = await fetch(`/api/public/${publicId}/video.mp4`).catch(() => null);
+      const res = await fetch(withOwner(`/api/public/${publicId}/video.mp4`)).catch(() => null);
       if (res?.ok) { const blob = await res.blob(); triggerDownload(blob); }
+      else if (res?.status === 403) setVideoState('error');
       else setVideoState('error');
       return;
     }
@@ -213,7 +236,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
 
     // If nothing is running (edge case: pre-trigger missed), kick it off via video.mp4
     if (!status?.generating && status?.video_b64 !== "ERROR") {
-      fetch(`/api/public/${publicId}/video.mp4`).catch(() => {});
+      fetch(withOwner(`/api/public/${publicId}/video.mp4`)).catch(() => {});
     }
 
     // Countdown tick — updates timer display every second
@@ -234,7 +257,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
 
       if (s.video_b64 === "DONE") {
         stopTimers();
-        const res = await fetch(`/api/public/${publicId}/video.mp4`).catch(() => null);
+        const res = await fetch(withOwner(`/api/public/${publicId}/video.mp4`)).catch(() => null);
         if (res?.ok) { const blob = await res.blob(); triggerDownload(blob); }
         else setVideoState('error');
         return;
@@ -259,7 +282,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
 
     if (status?.card_video_b64 === "DONE") {
       setCardVideoState('generating');
-      const res = await fetch(`/api/public/${publicId}/card-video.mp4`).catch(() => null);
+      const res = await fetch(withOwner(`/api/public/${publicId}/card-video.mp4`)).catch(() => null);
       if (res?.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -284,7 +307,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     const startedAt = Date.now();
 
     // Kick off generation via endpoint (it deduplicates internally)
-    fetch(`/api/public/${publicId}/card-video.mp4`).catch(() => {});
+    fetch(withOwner(`/api/public/${publicId}/card-video.mp4`)).catch(() => {});
 
     cardTimerRef.current = setInterval(() => {
       const left = Math.max(0, 300 - Math.floor((Date.now() - startedAt) / 1000));
@@ -302,7 +325,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       if (s.card_video_b64 === "DONE") {
         if (cardVideoPollRef.current) { clearInterval(cardVideoPollRef.current); cardVideoPollRef.current = null; }
         if (cardTimerRef.current) { clearInterval(cardTimerRef.current); cardTimerRef.current = null; }
-        const res = await fetch(`/api/public/${publicId}/card-video.mp4`).catch(() => null);
+        const res = await fetch(withOwner(`/api/public/${publicId}/card-video.mp4`)).catch(() => null);
         if (res?.ok) {
           const blob = await res.blob();
           const url = URL.createObjectURL(blob);

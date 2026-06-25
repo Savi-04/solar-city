@@ -51,6 +51,7 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN video_error TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN card_video_b64 TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN card_video_attempts INTEGER DEFAULT 0;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN card_video_error TEXT;'); } catch (e) {}
+try { db.exec('ALTER TABLE jobs ADD COLUMN download_token TEXT;'); } catch (e) {}
 
 
 export interface Job {
@@ -79,6 +80,7 @@ export interface Job {
   card_video_b64: string | null;
   card_video_attempts: number;
   card_video_error: string | null;
+  download_token: string | null;
   created_at: string;
 }
 
@@ -185,6 +187,10 @@ export function resetVideoAttempts(jobId: string): void {
 
 export function saveVideoError(jobId: string, message: string): void {
   db.prepare("UPDATE jobs SET video_b64 = 'ERROR', video_error = ? WHERE id = ?").run(message.slice(0, 500), jobId);
+}
+
+export function setDownloadToken(jobId: string, token: string): void {
+  db.prepare('UPDATE jobs SET download_token = ? WHERE id = ?').run(token, jobId);
 }
 
 export function incrementCardVideoAttempts(jobId: string): void {

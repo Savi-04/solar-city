@@ -41,6 +41,7 @@ import {
   incrementCardVideoAttempts,
   saveCardVideoOnly,
   saveCardVideoError,
+  setDownloadToken,
 } from "./src/db.ts";
 
 function escapeXml(s: string): string {
@@ -550,6 +551,26 @@ async function startServer() {
       .finally(() => videoGenInProgress.delete(job.id));
   }
 
+  // Generates (or returns existing) a cryptographically random download token.
+  // Used to gate video downloads so only the card owner can download their assets.
+  function ensureDownloadToken(jobId: string): string {
+    const job = getJob(jobId);
+    if (job?.download_token) return job.download_token;
+    const token = crypto.randomBytes(24).toString('hex');
+    setDownloadToken(jobId, token);
+    return token;
+  }
+
+  // Validates the download token from a request. Returns true if access is allowed.
+  // Legacy jobs (no token) are allowed through so existing users aren't locked out.
+  function checkDownloadToken(req: any, res: any, job: { download_token: string | null }): boolean {
+    if (!job.download_token) return true; // legacy card — no token required
+    const provided = req.query.owner as string | undefined;
+    if (provided === job.download_token) return true;
+    res.status(403).json({ error: "owner_required", message: "Check your email for the owner link to download your videos." });
+    return false;
+  }
+
   async function generateCardVideo(jobId: string): Promise<void> {
     const job = getJob(jobId);
     if (!job?.bg_layer_b64 || !job?.portrait_layer_b64 || !job?.frame_layer_b64 || !job?.text_layer_b64 || !job.public_id) {
@@ -607,17 +628,15 @@ async function startServer() {
     incrementVideoAttempts(jobId);
 
     // Keep prompt under ~2000 chars — Kling rejects longer prompts with 422
-    const PROMPT = `Full-body wide shot, 9:16 vertical frame. @Image1 stands slightly left of center — full body and face clearly visible. Moderate gap between character and right edge.
+    const PROMPT = `Full-body shot, 9:16 vertical frame. @Image1 stands center-left, closer to camera, filling the lower two-thirds of the frame. Face and full body prominently visible and sharp.
 
-Character: COD-style AAA military game character. Tactical dark outfit. Face must match the portrait reference exactly — realistic skin texture, no smoothing, no beautification, no artistic interpretation. Neutral, confident stance. Body completely still throughout entire clip.
+CHARACTER CONSISTENCY — CRITICAL: Face, facial features, skin tone, hair, and every article of clothing must be reproduced IDENTICALLY from the portrait reference. Do not alter, substitute, redesign, or reinterpret any part of the outfit or appearance. The character looks exactly like the reference photo — only the lighting environment changes. Neutral confident stance, body completely still.
 
-Background: Indoor private garage. Three luxury vehicles — sleek sports car (left), massive monster truck (center), luxury sedan (right). SMG rifles mounted on display racks on the back wall. Very thin wisps of transparent smoke drift slowly through the air. Cinematic moody atmosphere.
+Background: Indoor private garage. Three luxury vehicles — sleek sports car (left), massive monster truck (center), luxury sedan (right). SMG rifles mounted on the back wall. Thin wisps of transparent smoke drift slowly.
 
-Lighting: Powerful professional studio three-point setup. Strong bright key light from upper-right falls directly on character and vehicles — every subject is clearly and boldly lit. Warm amber fill lights illuminate vehicle bodywork. Crisp white rim light outlines character silhouette against background. All elements clearly visible: character, cars, gun wall. Cinematic mood comes from contrast between lit subjects and dark negative space — NOT from underexposure. No dark faces. No crushed blacks on character.
+Lighting: Powerful three-point studio setup. Strong bright key light from upper-right illuminates character clearly — face fully lit, no shadows obscuring features. Warm fill on vehicles. Crisp rim light separates character from background. No dark faces. No crushed blacks.
 
-Camera starts slightly left of center and pans VERY SLOWLY rightward over the full 10 seconds. Smooth continuous pan, no cuts, no camera shake.
-
-Ultra-realistic AAA game production quality render.`;
+Camera pans VERY SLOWLY rightward over 10 seconds. Smooth, no cuts, no shake. Ultra-realistic AAA quality.`;
 
     const result = await fal.subscribe("fal-ai/kling-video/o3/standard/reference-to-video", {
       input: {
@@ -663,14 +682,12 @@ Ultra-realistic AAA game production quality render.`;
       const vW: number = vStream?.width ?? 1080;
       const vH: number = vStream?.height ?? 1920;
 
-      // Card on the RIGHT side — center at 76% x, 40% y
-      const cardW = Math.round(vW * 0.30);
-      const cardCX = Math.round(vW * 0.76);
-      const cardCY = Math.round(vH * 0.40);
+      // Card in top-right corner — 1.8× larger than before, 20px margin from edges
+      const cardW = Math.round(vW * 0.54);
 
       const fc =
         `[1:v]scale=${cardW}:-1[card];` +
-        `[0:v][card]overlay=x='${cardCX}-overlay_w/2':y='${cardCY}-overlay_h/2':shortest=1`;
+        `[0:v][card]overlay=x='main_w-overlay_w-20':y='20':shortest=1`;
 
       await execAsync(
         `ffmpeg -y -i "${rawVideoPath}" -loop 1 -i "${cardJpegPath}" ` +
@@ -732,21 +749,21 @@ Ultra-realistic AAA game production quality render.`;
 
       incrementCardVideoAttempts(jobId);
 
-      const PRODUCT_PROMPT = `Cinematic product shot, 9:16 vertical frame. A playing card stands upright at 45 degrees on a worn round wooden table, leaning diagonally. A jungle survival knife — weathered steel blade, leather-wrapped handle — is stabbed through the lower third of the card with its tip embedded into the wood grain, holding the card in place.
+      const PRODUCT_PROMPT = `GoPro chest-mount first-person POV shot. A real human hand with natural skin and fingers enters frame from below, palm facing up. A playing card rests on a dark polished surface — it shares the same geometric patterns, border design and color palette as the reference card but the printed text fields are blank, only the background artwork is visible.
 
-Hundreds of hyper-realistic crystal-clear water droplets cover the card surface. Each droplet is perfectly spherical with visible internal light refraction. Water beads slowly trickle down the card face, dripping off the bottom edge onto the wood grain below.
+The hand lifts the card slowly and turns it to face the camera. A soft biometric fingerprint scanner pulse glows on the card surface — scanning animation. A holographic ripple spreads across the card face as it unlocks. The card design shimmers and the full artwork appears — text, details, and design now exactly matching the reference card image. The hand holds the fully revealed card forward, crisp and sharp in frame.
 
-Camera: low and to the side, slightly below table height, angled across the surface. Extreme shallow depth of field — card and knife razor sharp, background softly blurred bokeh.
+Camera: GoPro wide-angle, subtle fisheye distortion, chest-mounted perspective. Hand occupies lower half of frame. Shallow focus on the card, background softly blurred.
 
-Lighting: single dramatic warm amber side light from the right catches every water droplet edge. Deep natural shadow fills the left side. The card artwork remains clearly visible through the droplets.
+Lighting: warm ambient light with soft side fill. Natural skin tones on the hand. The card surface catches light cleanly.
 
-Dark moody atmospheric background. Slow gentle camera arc around the scene. Photorealistic, cinematic, 8K quality product photography.`;
+Hyper-realistic, cinematic quality, smooth motion.`;
 
       const result = await fal.subscribe("fal-ai/kling-video/o3/standard/reference-to-video", {
         input: {
           prompt: PRODUCT_PROMPT,
           image_urls: [cardUrl],
-          duration: "5",
+          duration: "8",
           aspect_ratio: "9:16",
           generate_audio: false,
         },
@@ -921,6 +938,7 @@ Dark moody atmospheric background. Slow gentle camera arc around the scene. Phot
     updateJobStatus(jobId, "DONE");
     const publicId = generatePublicId();
     setPublicId(jobId, publicId);
+    ensureDownloadToken(jobId);
     triggerVideoIfReady(jobId);
     res.redirect(`/id/${publicId}`);
   });
@@ -963,9 +981,11 @@ Dark moody atmospheric background. Slow gentle camera arc around the scene. Phot
               updateJobStatus(jobId, "DONE");
               const publicId = generatePublicId();
               setPublicId(jobId, publicId);
+              const dlToken = ensureDownloadToken(jobId);
               if (buyerEmail) {
                 setBuyerEmail(jobId, buyerEmail);
-                const cardUrl = `${BASE_URL}/id/${publicId}`;
+                // Owner link includes the download token — only this email recipient can download videos
+                const cardUrl = `${BASE_URL}/id/${publicId}?owner=${dlToken}`;
                 sendCardEmail(buyerEmail, cardUrl).catch(console.error);
               }
               triggerVideoIfReady(jobId);
@@ -974,7 +994,8 @@ Dark moody atmospheric background. Slow gentle camera arc around the scene. Phot
               // Browser redirect already completed it — send email if we haven't yet, trigger video if not started
               if (job.public_id && buyerEmail && !job.buyer_email) {
                 setBuyerEmail(jobId, buyerEmail);
-                const cardUrl = `${BASE_URL}/id/${job.public_id}`;
+                const dlToken = ensureDownloadToken(jobId);
+                const cardUrl = `${BASE_URL}/id/${job.public_id}?owner=${dlToken}`;
                 sendCardEmail(buyerEmail, cardUrl).catch(console.error);
               }
               triggerVideoIfReady(jobId);
@@ -1008,9 +1029,10 @@ Dark moody atmospheric background. Slow gentle camera arc around the scene. Phot
     updateJobStatus(jobId, "DONE");
     const publicId = generatePublicId();
     setPublicId(jobId, publicId);
+    const dlToken = ensureDownloadToken(jobId);
     triggerVideoIfReady(jobId);
     console.log(`Admin rescue: job ${jobId} → /id/${publicId}`);
-    return res.json({ ok: true, public_id: publicId, card_url: `/id/${publicId}` });
+    return res.json({ ok: true, public_id: publicId, card_url: `/id/${publicId}`, owner_url: `${BASE_URL}/id/${publicId}?owner=${dlToken}` });
   });
 
   // Admin: list all jobs (excluding demo-card) for debugging
@@ -1068,6 +1090,7 @@ Dark moody atmospheric background. Slow gentle camera arc around the scene. Phot
           const publicId = generatePublicId();
           setPublicId(jobId, publicId);
           if (sale.email) setBuyerEmail(jobId, sale.email);
+          ensureDownloadToken(jobId);
           triggerVideoIfReady(jobId);
           console.log(`Admin gumroad-sync: rescued job ${jobId} (${sale.email}) → /id/${publicId}`);
           rescued.push({ ...saleInfo, job_id: jobId, public_id: publicId, card_url: `/id/${publicId}` });
@@ -1139,6 +1162,7 @@ Dark moody atmospheric background. Slow gentle camera arc around the scene. Phot
   app.get("/api/public/:publicId/video.mp4", jobLimiter, async (req: any, res: any) => {
     const job = getJobByPublicId(req.params.publicId);
     if (!job) return res.status(404).json({ error: "Not found" });
+    if (!checkDownloadToken(req, res, job)) return;
 
     const videosDir = path.join(process.env.DATA_DIR || process.cwd(), "videos");
     const videoPath = path.join(videosDir, `${req.params.publicId}.mp4`);
@@ -1194,6 +1218,7 @@ Dark moody atmospheric background. Slow gentle camera arc around the scene. Phot
   app.get("/api/public/:publicId/card-video.mp4", jobLimiter, async (req: any, res: any) => {
     const job = getJobByPublicId(req.params.publicId);
     if (!job || job.status !== "DONE") return res.status(404).json({ error: "Not found" });
+    if (!checkDownloadToken(req, res, job)) return;
 
     const CARD_VIDEO_MAX_ATTEMPTS = 3;
     const attempts = job.card_video_attempts ?? 0;
