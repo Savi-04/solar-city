@@ -584,29 +584,22 @@ async function startServer() {
     // Increment here — only counts when we actually hit the API, not on triggers/retries
     incrementVideoAttempts(jobId);
 
-    // Only portrait as @Image1 — card is overlaid exactly via FFmpeg post-process
-    const PROMPT = `Full-body wide shot, vertical 9:16 frame. @Image1 stands 4 to 5 meters from the camera — the entire body is visible from shoes to slightly above the head. The subject occupies roughly 55 percent of the frame height. Significant environment is visible above the head, below the feet, and on both sides.
+    // Keep prompt under ~1500 chars — Kling rejects longer prompts with 422
+    const PROMPT = `Full-body wide shot, 9:16 vertical frame. @Image1 stands 4 meters from camera — full body visible from feet to above head, occupying about 55% of frame height. Significant background visible above, below, and on both sides.
 
-POSE — locked throughout the entire clip: Both arms extended forward at chest height, elbows slightly bent, both hands flat and open facing upward, presenting something outward toward the camera like offering a prize or displaying an earned achievement. The card rests across the open palms. Head held high, chin slightly lifted. Expression: quiet pride and confidence — the look of someone who earned something significant. Chest out, feet shoulder-width apart in a power stance. This pose does not change at any point during the video. Arms stay extended forward the entire duration.
+Both arms extended forward at chest height, both hands open and flat facing upward, presenting something to the camera like displaying an earned prize. Head held high, chin slightly lifted. Proud, confident expression. Chest out, power stance. Arms stay extended and still for the entire clip.
 
-The subject's face, bone structure, skin texture, hair, and all physical features must remain pixel-identical to the reference. No redrawing, no beautification, no morphing.
+Subject's face, skin, hair, and all features pixel-identical to the reference. No redrawing, no beautification, no morphing.
 
-BACKGROUND — game cinematic achievement world: A vast open-air observation platform at the very top of a massive futuristic skyscraper. The platform has a clean stone or polished concrete floor. Beyond the railing edge, a sprawling modern metropolis stretches to the horizon in every direction — dense city grid, towers of varying heights, bridges, rivers catching evening light. The sky is at the magic hour transition: deep electric blue overhead fading to warm amber and burnt orange near the horizon. Dramatic volumetric god rays cut down through scattered clouds from upper left, catching atmospheric haze and dust. Distant city lights are just beginning to flicker on. No neon signs. No holographic UI. No cyberpunk elements. The aesthetic is premium open-world game — grand scale, earned, powerful.
+Background: Rooftop observation deck of a massive skyscraper at magic hour. Clean concrete floor. Sprawling modern city visible in every direction — dense grid of towers, bridges, rivers. Sky transitions from deep blue overhead to warm amber and orange near the horizon. Dramatic god rays cutting through atmospheric haze. No neon. No holographics. Premium open-world game cinematic aesthetic — grand scale.
 
-LIGHTING: A warm golden rim light from upper-left behind the subject, creating a hero glow along the shoulder and side of the head. Soft front fill keeps the face clearly lit. The subject's outstretched hands and the space between them are lit as if catching the golden hour light — inviting focus.
+Warm golden rim light from upper-left creates a hero glow around the subject's shoulders. Soft front fill keeps face visible. Low-angle slow crane drift from slightly below eye level to eye level. Background city in soft bokeh.
 
-CAMERA: Slow low-angle crane drift — starting from slightly below eye level angled slightly upward (making the subject look powerful against the sky), gradually leveling to eye height over the clip. Subtle horizontal drift of no more than 3 percent frame width. The background city moves slowly in parallax. Cinematic depth of field: subject sharp, background in beautiful layered bokeh.
-
-MOTION — environment only: A steady warm wind moves the subject's hair and clothing throughout. Distant birds or aircraft cross the far background. Clouds shift imperceptibly. The subject's arms and hands do not move. No speaking. No gesturing. No repositioning. The only body motion is natural clothing and hair physics from wind.
-
-Style: Cinematic game trailer quality. Rich saturated color grade — warm ambers, deep blues, golden highlights. Slight film grain. Lens flare streak from the rim light source. Epic in scale, intimate in face. This is the moment of having arrived.`;
-
-    const NEGATIVE_PROMPT = `morphing, warping, extra limbs, extra fingers, face distortion, face change, beautification, cartoonish, anime, neon signs, cyberpunk neon, holographic overlays, rapid movement, flickering, stuttering, talking, arms at sides, empty hands, closed fists, medium close-up, tight crop, face filling frame, walking, running, head turning`;
+Wind moves hair and clothing throughout. No speaking, no gesturing, no repositioning. Environment-only motion.`;
 
     const result = await fal.subscribe("fal-ai/kling-video/o3/standard/reference-to-video", {
       input: {
         prompt: PROMPT,
-        negative_prompt: NEGATIVE_PROMPT,
         image_urls: [portraitUrl],
         duration: "10",
         aspect_ratio: "9:16",
