@@ -762,6 +762,8 @@ Camera: GoPro wide-angle, subtle fisheye distortion, chest-mounted perspective. 
 
 Lighting: warm ambient light with soft side fill. Natural skin tones on the hand. The card surface catches light cleanly.
 
+The card is rigid and solid at all times — hard plastic, no bending, no flex, no warping.
+
 Hyper-realistic, cinematic quality, smooth motion.`;
 
       const result = await fal.subscribe("fal-ai/kling-video/o3/standard/reference-to-video", {
