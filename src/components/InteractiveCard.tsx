@@ -10,7 +10,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   const [error, setError] = useState<string | null>(null);
   const [paymentPending, setPaymentPending] = useState(false);
   const [gyroPermission, setGyroPermission] = useState<'unavailable' | 'prompt' | 'granted' | 'denied'>('unavailable');
-  const [videoState, setVideoState] = useState<'idle' | 'generating' | 'timeout' | 'error' | 'limit'>('idle');
+  const [videoState, setVideoState] = useState<'idle' | 'generating' | 'timeout' | 'error' | 'limit' | 'no_token'>('idle');
   const [timerSecondsLeft, setTimerSecondsLeft] = useState<number>(300);
   const videoPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -218,7 +218,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       setVideoState('generating');
       const res = await fetch(withOwner(`/api/public/${publicId}/video.mp4`)).catch(() => null);
       if (res?.ok) { const blob = await res.blob(); triggerDownload(blob); }
-      else if (res?.status === 403) setVideoState('error');
+      else if (res?.status === 403) setVideoState('no_token');
       else setVideoState('error');
       return;
     }
@@ -259,6 +259,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
         stopTimers();
         const res = await fetch(withOwner(`/api/public/${publicId}/video.mp4`)).catch(() => null);
         if (res?.ok) { const blob = await res.blob(); triggerDownload(blob); }
+        else if (res?.status === 403) setVideoState('no_token');
         else setVideoState('error');
         return;
       }
@@ -533,7 +534,14 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
             </button>
           )}
           {/* Download for TikTok — video is pre-generated at card creation, usually ready on arrival */}
-          {videoState === 'limit' ? (
+          {videoState === 'no_token' ? (
+            <div
+              className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full max-w-[280px] text-center"
+              style={{ background: "rgba(255,160,0,0.06)", border: "1px solid rgba(255,160,0,0.22)", color: "rgba(255,160,0,0.7)", lineHeight: "1.6" }}
+            >
+              Open the owner link from your email to download
+            </div>
+          ) : videoState === 'limit' ? (
             <div className="flex flex-col items-center gap-2 w-full max-w-[280px]">
               <div
                 className="inline-flex items-center justify-center rounded-xl px-7 py-3.5 font-mono tracking-[0.1em] text-[11px] w-full"

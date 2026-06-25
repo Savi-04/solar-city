@@ -923,9 +923,10 @@ Hyper-realistic, cinematic quality, smooth motion.`;
 
     const job = getJob(jobId);
     if (!job || job.status !== "PREVIEW_READY") {
-      // Already DONE (e.g. double-redirect) — send to public card URL if available
-      if (job?.status === "DONE") {
-        return res.redirect(job.public_id ? `/id/${job.public_id}` : "/");
+      // Already DONE (e.g. double-redirect) — redirect with download token so the owner can download
+      if (job?.status === "DONE" && job.public_id) {
+        const dlToken = job.download_token || ensureDownloadToken(job.id);
+        return res.redirect(`/id/${job.public_id}?owner=${dlToken}`);
       }
       return res.redirect("/");
     }
@@ -938,9 +939,9 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     updateJobStatus(jobId, "DONE");
     const publicId = generatePublicId();
     setPublicId(jobId, publicId);
-    ensureDownloadToken(jobId);
+    const dlToken = ensureDownloadToken(jobId);
     triggerVideoIfReady(jobId);
-    res.redirect(`/id/${publicId}`);
+    res.redirect(`/id/${publicId}?owner=${dlToken}`);
   });
 
   // Gumroad server-to-server ping — primary completion path (more reliable than browser redirect).
