@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Zap, ArrowRight, Upload, Cpu, Download, ExternalLink } from "lucide-react";
 import InteractiveCard from "../components/InteractiveCard";
 import { useCurrencyPrice } from "../hooks/useCurrencyPrice";
+import { usePageView } from "../hooks/usePageView";
 
 /* ── Floating particles (shared with MainFlow) ── */
 function ParticleField() {
@@ -304,6 +305,7 @@ export default function LandingPage() {
   const [demoReady, setDemoReady] = useState(false);
   const [soldOut, setSoldOut] = useState(false);
   const { price: localPrice, oldPrice } = useCurrencyPrice();
+  usePageView("/");
 
   // Check if demo card layers are ready
   useEffect(() => {

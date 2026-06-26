@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Routes, Route, Navigate, useNavigate, Link } from "react-router-dom";
+import { usePageView } from "./hooks/usePageView";
 import { motion } from "motion/react";
 import UploadStep from "./components/UploadStep";
 import PreviewStep from "./components/PreviewStep";
@@ -9,6 +10,7 @@ import LandingPage from "./pages/LandingPage";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import AdminPaidUsers from "./pages/AdminPaidUsers";
+import AnalyticsDashboard from "./pages/AnalyticsDashboard";
 import PaymentConfirmingOverlay from "./components/PaymentConfirmingOverlay";
 
 type AppState = "UPLOAD" | "PREVIEW" | "RENDERING" | "SUCCESS";
@@ -50,6 +52,7 @@ function ParticleField() {
 }
 
 function MainFlow() {
+  usePageView("/create");
   const [appState, setAppState] = useState<AppState>("UPLOAD");
   const [jobId, setJobId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -291,6 +294,7 @@ export default function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/paid-users" element={<AdminPaidUsers />} />
+        <Route path="/analytics" element={<AnalyticsDashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

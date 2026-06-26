@@ -53,6 +53,18 @@ try { db.exec('ALTER TABLE jobs ADD COLUMN card_video_attempts INTEGER DEFAULT 0
 try { db.exec('ALTER TABLE jobs ADD COLUMN card_video_error TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE jobs ADD COLUMN download_token TEXT;'); } catch (e) {}
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS page_views (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    page         TEXT    NOT NULL,
+    country_code TEXT,
+    country      TEXT,
+    city         TEXT,
+    device       TEXT,
+    referrer     TEXT,
+    created_at   INTEGER NOT NULL
+  )
+`);
 
 export interface Job {
   id: string;

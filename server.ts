@@ -27,6 +27,25 @@ const videoFailCounts = new Map<string, number>();
 const cardVideoFailCounts = new Map<string, number>();
 const VIDEO_FAIL_CAP = 5;
 const CARD_VIDEO_FAIL_CAP = 5;
+
+// Geo-IP cache — stores country/city per IP, never persisted (GDPR safe)
+const geoCache = new Map<string, { country: string; countryCode: string; city: string }>();
+async function lookupGeo(rawIp: string) {
+  const ip = rawIp?.startsWith("::ffff:") ? rawIp.slice(7) : rawIp;
+  if (!ip || ip === "127.0.0.1" || ip === "::1") return { country: "Local", countryCode: "—", city: "—" };
+  if (geoCache.has(ip)) return geoCache.get(ip)!;
+  if (geoCache.size > 10000) geoCache.clear();
+  try {
+    const r = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,city`);
+    const d = await r.json() as any;
+    if (d.status === "success") {
+      const result = { country: d.country as string, countryCode: d.countryCode as string, city: d.city as string };
+      geoCache.set(ip, result);
+      return result;
+    }
+  } catch { /* best effort */ }
+  return { country: "Unknown", countryCode: "—", city: "—" };
+}
 import {
   db,
   createJob,
@@ -119,6 +138,47 @@ async function startServer() {
 
   const uploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: "Too many requests, try again later" } });
   const jobLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+  const analyticsLimiter = rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: false, legacyHeaders: false });
+
+  // ── Analytics ────────────────────────────────────────────────────────────
+  app.post("/api/analytics/pageview", analyticsLimiter, express.json({ limit: "2kb" }), async (req: any, res: any) => {
+    res.json({ ok: true }); // respond immediately, don't block client
+    const { page, referrer } = req.body ?? {};
+    if (!page || typeof page !== "string") return;
+    const ua = (req.headers["user-agent"] ?? "") as string;
+    const device = /mobile|android|iphone|ipad/i.test(ua) ? "mobile" : "desktop";
+    const geo = await lookupGeo(req.ip ?? "");
+    db.prepare(
+      `INSERT INTO page_views (page, country_code, country, city, device, referrer, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      page.slice(0, 100),
+      geo.countryCode,
+      geo.country,
+      geo.city,
+      device,
+      ((referrer ?? "") as string).slice(0, 200) || "direct",
+      Date.now()
+    );
+  });
+
+  app.get("/api/analytics/stats", (req: any, res: any) => {
+    if (!process.env.ADMIN_SECRET || req.headers["x-admin-secret"] !== process.env.ADMIN_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const since = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const total      = db.prepare("SELECT COUNT(*) as n FROM page_views WHERE created_at > ?").get(since) as any;
+    const byPage     = db.prepare("SELECT page, COUNT(*) as n FROM page_views WHERE created_at > ? GROUP BY page ORDER BY n DESC").all(since);
+    const byCountry  = db.prepare("SELECT country, country_code, COUNT(*) as n FROM page_views WHERE created_at > ? GROUP BY country ORDER BY n DESC LIMIT 20").all(since);
+    const byDevice   = db.prepare("SELECT device, COUNT(*) as n FROM page_views WHERE created_at > ? GROUP BY device").all(since);
+    const byReferrer = db.prepare("SELECT referrer, COUNT(*) as n FROM page_views WHERE created_at > ? GROUP BY referrer ORDER BY n DESC LIMIT 10").all(since);
+    const byDay      = db.prepare(
+      `SELECT strftime('%Y-%m-%d', datetime(created_at/1000, 'unixepoch')) as day, COUNT(*) as n
+       FROM page_views WHERE created_at > ? GROUP BY day ORDER BY day DESC LIMIT 30`
+    ).all(since);
+    res.json({ total: total.n, byPage, byCountry, byDevice, byReferrer, byDay });
+  });
+  // ── End Analytics ────────────────────────────────────────────────────────
 
   // fal.ai proxy — must be before express.json() so raw body is not pre-consumed
   app.use("/api/fal/proxy", jobLimiter, express.raw({ type: "*/*", limit: "50mb" }), async (req: any, res: any) => {
