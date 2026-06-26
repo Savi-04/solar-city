@@ -3,6 +3,7 @@ import { Loader2, Zap, Star, Shield, Link as LinkIcon } from "lucide-react";
 import { motion } from "motion/react";
 import InteractiveCard from "./InteractiveCard";
 import { useCurrencyPrice } from "../hooks/useCurrencyPrice";
+import { trackEvent } from "../hooks/usePageView";
 
 interface PreviewStepProps {
   jobId: string;
@@ -150,6 +151,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
           <motion.button
             onClick={() => {
               if (gumroadHref) {
+                trackEvent("cta:claim-resident-id");
                 onPay();
                 window.location.href = gumroadHref;
               }

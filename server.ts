@@ -176,7 +176,14 @@ async function startServer() {
       `SELECT strftime('%Y-%m-%d', datetime(created_at/1000, 'unixepoch')) as day, COUNT(*) as n
        FROM page_views WHERE created_at > ? GROUP BY day ORDER BY day DESC LIMIT 30`
     ).all(since);
-    res.json({ total: total.n, byPage, byCountry, byDevice, byReferrer, byDay });
+    const ctaClicks  = db.prepare(
+      `SELECT page, COUNT(*) as n FROM page_views WHERE page LIKE 'cta:%' AND created_at > ? GROUP BY page ORDER BY n DESC`
+    ).all(since);
+    const leads      = db.prepare(
+      `SELECT page, country, country_code, city, device, referrer, created_at
+       FROM page_views WHERE page LIKE 'cta:%' ORDER BY created_at DESC LIMIT 200`
+    ).all();
+    res.json({ total: total.n, byPage, byCountry, byDevice, byReferrer, byDay, ctaClicks, leads });
   });
   // ── End Analytics ────────────────────────────────────────────────────────
 

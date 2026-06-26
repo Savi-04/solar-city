@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Zap, ArrowRight, Upload, Cpu, Download, ExternalLink } from "lucide-react";
 import InteractiveCard from "../components/InteractiveCard";
 import { useCurrencyPrice } from "../hooks/useCurrencyPrice";
-import { usePageView } from "../hooks/usePageView";
+import { usePageView, trackEvent } from "../hooks/usePageView";
 
 /* ── Floating particles (shared with MainFlow) ── */
 function ParticleField() {
@@ -388,7 +388,7 @@ export default function LandingPage() {
               className="mt-7 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto"
             >
               <button
-                onClick={() => !soldOut && navigate("/create")}
+                onClick={() => { if (!soldOut) { trackEvent("cta:make-your-card"); navigate("/create"); } }}
                 disabled={soldOut}
                 className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 rounded-xl px-8 py-4 font-black tracking-[0.18em] text-[14px] relative overflow-hidden group transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
@@ -572,7 +572,7 @@ export default function LandingPage() {
             </ul>
 
             <button
-              onClick={() => !soldOut && navigate("/create")}
+              onClick={() => { if (!soldOut) { trackEvent("cta:claim-player-card"); navigate("/create"); } }}
               disabled={soldOut}
               className="w-full rounded-xl py-4 font-black tracking-[0.2em] text-[13px] relative overflow-hidden group transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
