@@ -187,6 +187,35 @@ async function startServer() {
   });
   // ── End Analytics ────────────────────────────────────────────────────────
 
+  // ── Admin payment bypass ─────────────────────────────────────────────────
+  app.post("/api/admin/bypass-payment", jobLimiter, express.json({ limit: "1kb" }), (req: any, res: any) => {
+    if (!process.env.ADMIN_SECRET || req.headers["x-admin-secret"] !== process.env.ADMIN_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const { jobId } = req.body ?? {};
+    if (!jobId || typeof jobId !== "string") return res.status(400).json({ error: "Missing jobId" });
+
+    const job = getJob(jobId);
+    if (!job) return res.status(404).json({ error: "Not found" });
+
+    // Already completed — just return the existing card URL
+    if (job.status === "DONE" && job.public_id) {
+      const dlToken = ensureDownloadToken(job.id);
+      return res.json({ publicId: job.public_id, dlToken });
+    }
+    if (job.status !== "PREVIEW_READY") {
+      return res.status(400).json({ error: `Job not ready (status: ${job.status})` });
+    }
+
+    updateJobStatus(jobId, "DONE");
+    const publicId = generatePublicId();
+    setPublicId(jobId, publicId);
+    const dlToken = ensureDownloadToken(jobId);
+    triggerVideoIfReady(jobId);
+    res.json({ publicId, dlToken });
+  });
+  // ── End Admin bypass ─────────────────────────────────────────────────────
+
   // fal.ai proxy — must be before express.json() so raw body is not pre-consumed
   app.use("/api/fal/proxy", jobLimiter, express.raw({ type: "*/*", limit: "50mb" }), async (req: any, res: any) => {
     const targetUrl = req.headers["x-fal-target-url"] as string;

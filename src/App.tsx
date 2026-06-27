@@ -53,6 +53,7 @@ function ParticleField() {
 
 function MainFlow() {
   usePageView("/create");
+  const adminKey = sessionStorage.getItem("sc_admin_key") ?? undefined;
   const [appState, setAppState] = useState<AppState>("UPLOAD");
   const [jobId, setJobId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -187,6 +188,7 @@ function MainFlow() {
           isProcessingPayment={isProcessingPayment}
           playerNumber={playerNumber}
           completeToken={completeToken ?? undefined}
+          adminKey={adminKey}
         />
       )}
 
@@ -280,6 +282,18 @@ function MainFlow() {
 }
 
 export default function App() {
+  // Capture ?admin_mode=<secret> from URL → sessionStorage, then strip from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const key = params.get("admin_mode");
+    if (key) {
+      sessionStorage.setItem("sc_admin_key", key);
+      params.delete("admin_mode");
+      const clean = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+      window.history.replaceState({}, "", clean);
+    }
+  }, []);
+
   // Show the full-screen payment-confirming overlay whenever localStorage has a pending job.
   // The overlay polls every 5s and redirects to the card as soon as the webhook marks it DONE.
   const [hasPending, setHasPending] = useState(() => !!localStorage.getItem('solarPendingJob'));

@@ -12,6 +12,7 @@ interface PreviewStepProps {
   isProcessingPayment: boolean;
   playerNumber?: number | null;
   completeToken?: string;
+  adminKey?: string;
 }
 
 function HudCorners({ color = "#00e8ff" }: { color?: string }) {
@@ -33,8 +34,9 @@ const FEATURES = [
   { icon: <LinkIcon className="w-3 h-3" />, label: "Shareable link + download for IG / X / TikTok", color: "#b8ff3c" },
 ];
 
-export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isProcessingPayment, playerNumber, completeToken }: PreviewStepProps) {
+export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isProcessingPayment, playerNumber, completeToken, adminKey }: PreviewStepProps) {
   const [district, setDistrict] = useState<string | null>(null);
+  const [adminBypassing, setAdminBypassing] = useState(false);
   const { price: localPrice, oldPrice } = useCurrencyPrice();
 
   const gumroadProductUrl = import.meta.env.VITE_GUMROAD_PRODUCT_URL as string | undefined;
@@ -147,53 +149,104 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
             ))}
           </div>
 
-          {/* Pay button */}
-          <motion.button
-            onClick={() => {
-              if (gumroadHref) {
-                trackEvent("cta:claim-resident-id");
-                onPay();
-                window.location.href = gumroadHref;
-              }
-            }}
-            disabled={isProcessingPayment}
-            whileHover={{ scale: isProcessingPayment ? 1 : 1.01 }}
-            whileTap={{ scale: isProcessingPayment ? 1 : 0.99 }}
-            className="w-full rounded-xl py-4 relative overflow-hidden group disabled:opacity-45 disabled:cursor-not-allowed transition-shadow duration-200"
-            style={{
-              background: "linear-gradient(180deg, #1a0c14 0%, #110710 100%)",
-              border: "1px solid rgba(255,32,96,0.25)",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(255,32,96,0.08), 0 4px 14px rgba(0,0,0,0.55)",
-            }}
-          >
-            <div
-              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-              style={{ background: "linear-gradient(135deg, rgba(255,32,96,0.1) 0%, rgba(155,89,255,0.07) 100%)" }}
-            />
-            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-0 group-hover:opacity-100">
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent 0%, rgba(255,32,96,0.08) 50%, transparent 100%)", animation: "shimmer-sweep 2.5s ease-in-out infinite" }} />
-            </div>
-
-            {isProcessingPayment ? (
-              <span className="relative z-10 flex items-center justify-center space-x-2">
-                <Loader2 className="w-5 h-5 animate-spin text-[#ff2060]" />
-                <span className="font-mono text-sm text-white/50 tracking-widest">PROCESSING…</span>
-              </span>
-            ) : (
-              <span className="relative z-10 flex flex-col items-center">
-                <span
-                  className="font-black tracking-[0.18em] text-[15px]"
-                  style={{ color: "#ff2060", textShadow: "0 0 12px rgba(255,32,96,0.45)" }}
-                >
-                  GET MY CARD · <span style={{ textDecoration: "line-through", color: "rgba(255,255,255,0.45)", fontSize: "0.82em" }}>{oldPrice}</span> {localPrice} →
+          {/* Pay button — admin bypass or normal Gumroad */}
+          {adminKey ? (
+            <>
+              <div className="w-full mb-2 flex items-center justify-center space-x-1.5 rounded-lg py-1.5"
+                style={{ background: "rgba(0,232,255,0.06)", border: "1px solid rgba(0,232,255,0.15)" }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00e8ff]" style={{ boxShadow: "0 0 6px #00e8ff" }} />
+                <span className="font-mono text-[9px] tracking-widest" style={{ color: "#00e8ff" }}>ADMIN MODE ACTIVE</span>
+              </div>
+              <motion.button
+                onClick={async () => {
+                  if (adminBypassing) return;
+                  setAdminBypassing(true);
+                  onPay();
+                  try {
+                    const res = await fetch("/api/admin/bypass-payment", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "x-admin-secret": adminKey },
+                      body: JSON.stringify({ jobId }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error ?? "Bypass failed");
+                    window.location.href = `/id/${data.publicId}?owner=${data.dlToken}`;
+                  } catch (e: any) {
+                    alert(`Admin bypass failed: ${e.message}`);
+                    setAdminBypassing(false);
+                  }
+                }}
+                disabled={adminBypassing}
+                whileHover={{ scale: adminBypassing ? 1 : 1.01 }}
+                whileTap={{ scale: adminBypassing ? 1 : 0.99 }}
+                className="w-full rounded-xl py-4 relative overflow-hidden group disabled:opacity-45 disabled:cursor-not-allowed transition-shadow duration-200"
+                style={{
+                  background: "linear-gradient(180deg, #0a1a1e 0%, #060f12 100%)",
+                  border: "1px solid rgba(0,232,255,0.3)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(0,232,255,0.1), 0 4px 14px rgba(0,0,0,0.55)",
+                }}
+              >
+                {adminBypassing ? (
+                  <span className="relative z-10 flex items-center justify-center space-x-2">
+                    <Loader2 className="w-5 h-5 animate-spin" style={{ color: "#00e8ff" }} />
+                    <span className="font-mono text-sm tracking-widest" style={{ color: "#00e8ff" }}>GENERATING…</span>
+                  </span>
+                ) : (
+                  <span className="relative z-10 flex flex-col items-center">
+                    <span className="font-black tracking-[0.18em] text-[15px]"
+                      style={{ color: "#00e8ff", textShadow: "0 0 12px rgba(0,232,255,0.45)" }}>
+                      ⚡ SKIP PAYMENT — ADMIN GENERATE →
+                    </span>
+                    <span className="font-mono text-[9px] tracking-widest mt-1" style={{ color: "rgba(0,232,255,0.4)" }}>
+                      No charge · Admin access
+                    </span>
+                  </span>
+                )}
+              </motion.button>
+            </>
+          ) : (
+            <motion.button
+              onClick={() => {
+                if (gumroadHref) {
+                  trackEvent("cta:claim-resident-id");
+                  onPay();
+                  window.location.href = gumroadHref;
+                }
+              }}
+              disabled={isProcessingPayment}
+              whileHover={{ scale: isProcessingPayment ? 1 : 1.01 }}
+              whileTap={{ scale: isProcessingPayment ? 1 : 0.99 }}
+              className="w-full rounded-xl py-4 relative overflow-hidden group disabled:opacity-45 disabled:cursor-not-allowed transition-shadow duration-200"
+              style={{
+                background: "linear-gradient(180deg, #1a0c14 0%, #110710 100%)",
+                border: "1px solid rgba(255,32,96,0.25)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(255,32,96,0.08), 0 4px 14px rgba(0,0,0,0.55)",
+              }}
+            >
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+                style={{ background: "linear-gradient(135deg, rgba(255,32,96,0.1) 0%, rgba(155,89,255,0.07) 100%)" }} />
+              <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-0 group-hover:opacity-100">
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent 0%, rgba(255,32,96,0.08) 50%, transparent 100%)", animation: "shimmer-sweep 2.5s ease-in-out infinite" }} />
+              </div>
+              {isProcessingPayment ? (
+                <span className="relative z-10 flex items-center justify-center space-x-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-[#ff2060]" />
+                  <span className="font-mono text-sm text-white/50 tracking-widest">PROCESSING…</span>
                 </span>
-                <span className="font-mono text-[10px] text-white/28 tracking-widest mt-1">One-time · Shareable link · Yours to keep</span>
-              </span>
-            )}
-          </motion.button>
+              ) : (
+                <span className="relative z-10 flex flex-col items-center">
+                  <span className="font-black tracking-[0.18em] text-[15px]"
+                    style={{ color: "#ff2060", textShadow: "0 0 12px rgba(255,32,96,0.45)" }}>
+                    GET MY CARD · <span style={{ textDecoration: "line-through", color: "rgba(255,255,255,0.45)", fontSize: "0.82em" }}>{oldPrice}</span> {localPrice} →
+                  </span>
+                  <span className="font-mono text-[10px] text-white/28 tracking-widest mt-1">One-time · Shareable link · Yours to keep</span>
+                </span>
+              )}
+            </motion.button>
+          )}
 
           <p className="font-mono text-[8px] text-center text-white/14 mt-3 tracking-wide">
-            Secure checkout · Powered by Gumroad · Solara City Bureau of Residents
+            {adminKey ? "Admin session · Payment bypassed" : "Secure checkout · Powered by Gumroad · Solara City Bureau of Residents"}
           </p>
 
         </div>
