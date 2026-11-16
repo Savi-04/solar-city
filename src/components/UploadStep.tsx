@@ -149,7 +149,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               <Zap className="w-5 h-5 text-[#00c6d4]" style={{ filter: "drop-shadow(0 0 6px rgba(0,198,212,0.8))" }} />
             </div>
             <p className="font-mono text-[9px] tracking-[0.32em] text-white/28 uppercase mb-3">
-              Bureau of Residents · Official ID
+              County Sheriff · Fugitive Bulletin
             </p>
 
             {/* Live counter */}
@@ -324,7 +324,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                 ) : isUploading ? (
                   <>
                     <Cpu className="w-4 h-4 text-[#ff6b1a]" style={{ animation: "spin-slow 2s linear infinite" }} />
-                    <span>ISSUING RESIDENT ID…</span>
+                    <span>FILING BULLETIN…</span>
                   </>
                 ) : (
                   <>
@@ -337,7 +337,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
             </button>
 
             <p className="font-mono text-[8px] text-center text-white/12 tracking-wide">
-              Solara City Bureau of Residents · Official Document · SC-2025
+              Sunfall City County Sheriff · Novelty Bulletin · Not a government document
             </p>
 
           </form>

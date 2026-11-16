@@ -31,9 +31,9 @@ const FLAGS: Record<string, string> = {
 };
 
 const CTA_LABELS: Record<string, string> = {
-  "cta:make-your-card":    "Make Your Card (Hero)",
-  "cta:claim-player-card": "Claim My Player Card (Pricing)",
-  "cta:claim-resident-id": "Claim Resident ID (Payment)",
+  "cta:make-your-card":    "Get On The Bulletin (Hero)",
+  "cta:claim-player-card": "Get On The Bulletin (Pricing)",
+  "cta:get-on-bulletin":   "Put Me On The Bulletin (Payment)",
 };
 
 function parseSource(referrer: string): string {
@@ -102,7 +102,7 @@ export default function AnalyticsDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#05050d" }}>
         <div className="w-full max-w-xs px-6">
-          <p className="font-mono text-[10px] tracking-[0.35em] text-white/25 uppercase mb-6 text-center">Analytics · Solara City</p>
+          <p className="font-mono text-[10px] tracking-[0.35em] text-white/25 uppercase mb-6 text-center">Analytics · Sunfall City</p>
           <input
             type="password" placeholder="Admin secret" value={secret}
             onChange={e => setSecret(e.target.value)}
@@ -135,7 +135,7 @@ export default function AnalyticsDashboard() {
       <div className="max-w-4xl mx-auto px-6 py-16">
 
         <Link to="/" className="inline-flex items-center space-x-1.5 font-mono text-[10px] tracking-widest text-white/30 hover:text-white/60 transition-colors mb-10 uppercase">
-          <span>←</span><span>Back to Solara City</span>
+          <span>←</span><span>Back to Sunfall City</span>
         </Link>
 
         <div className="flex items-center justify-between mb-8">

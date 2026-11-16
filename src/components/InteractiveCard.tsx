@@ -194,7 +194,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'solara-city-card.mp4';
+    a.download = 'sunfall-city-wanted.mp4';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -287,7 +287,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       if (res?.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = 'solara-city-id-card.mp4';
+        const a = document.createElement('a'); a.href = url; a.download = 'sunfall-city-bulletin.mp4';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 15000);
         setCardVideoState('idle');
@@ -327,7 +327,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
         if (res?.ok) {
           const blob = await res.blob();
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a'); a.href = url; a.download = 'solara-city-id-card.mp4';
+          const a = document.createElement('a'); a.href = url; a.download = 'sunfall-city-bulletin.mp4';
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
           setTimeout(() => URL.revokeObjectURL(url), 15000);
           setCardVideoState('idle');
@@ -434,7 +434,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
       {standalone && (
         <div className="absolute top-4 left-4 z-20">
           <Link to="/" className="font-mono text-[9px] tracking-widest text-white/20 hover:text-white/50 transition-colors uppercase">
-            ← Solara City
+            ← Sunfall City
           </Link>
         </div>
       )}

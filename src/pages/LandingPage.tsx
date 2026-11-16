@@ -230,7 +230,7 @@ function LeaderboardSection() {
                       boxShadow: `0 0 18px ${colorScheme.glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
                     }}
                   >
-                    {/* Resident number badge */}
+                    {/* Fugitive number badge */}
                     <div
                       className="absolute top-2 left-2 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded z-10"
                       style={{
@@ -584,7 +584,7 @@ export default function LandingPage() {
               }}
             >
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(255,32,96,0.07)" }} />
-              {soldOut ? "SOLD OUT · ALL 2,000 CARDS ISSUED" : "CLAIM MY PLAYER CARD →"}
+              {soldOut ? "BOARD FULL · ALL 2,000 BULLETINS ISSUED" : "GET ON THE BULLETIN →"}
             </button>
           </div>
         </motion.div>

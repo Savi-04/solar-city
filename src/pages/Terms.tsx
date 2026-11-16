@@ -6,7 +6,7 @@ export default function Terms() {
       <div className="max-w-2xl mx-auto px-6 py-16">
 
         <Link to="/" className="inline-flex items-center space-x-1.5 font-mono text-[10px] tracking-widest text-white/30 hover:text-white/60 transition-colors mb-10 uppercase">
-          <span>←</span><span>Back to Solara City</span>
+          <span>←</span><span>Back to Sunfall City</span>
         </Link>
 
         <h1 className="text-3xl font-black tracking-tight mb-1" style={{ color: "#ff6b1a" }}>Terms of Service</h1>
@@ -16,7 +16,7 @@ export default function Terms() {
 
           <section>
             <h2 className="text-base font-bold text-white/90 mb-3 tracking-wide">1. Service description</h2>
-            <p>Solara City Bureau of Residents ("the Service") is a web application that allows users to upload a selfie, have it stylised using AI, and receive a holographic resident ID card ("the Card"). Solara City is an original fictional universe created for this project — it is not affiliated with, endorsed by, or connected to any real person, company, game, or publisher.</p>
+            <p>Sunfall City County Sheriff ("the Service") is a web application that allows users to upload a selfie, have it stylised using AI, and receive a holographic resident ID card ("the Card"). Sunfall City is an original fictional universe created for this project — it is not affiliated with, endorsed by, or connected to any real person, company, game, or publisher.</p>
           </section>
 
           <section>
@@ -60,8 +60,8 @@ export default function Terms() {
 
           <section>
             <h2 className="text-base font-bold text-white/90 mb-3 tracking-wide">5. Intellectual property</h2>
-            <p className="mb-3">The Solara City name, brand, visual design, districts, and card aesthetic are original works. The generated Cards include your AI-stylised portrait. You own the right to use your Card for personal, non-commercial purposes including social media sharing.</p>
-            <p className="mb-3">The Service does not use, reference, or reproduce any trademarks, characters, logos, or other intellectual property belonging to any third party. Solara City is entirely original fiction.</p>
+            <p className="mb-3">The Sunfall City name, brand, visual design, districts, and card aesthetic are original works. The generated Cards include your AI-stylised portrait. You own the right to use your Card for personal, non-commercial purposes including social media sharing.</p>
+            <p className="mb-3">The Service does not use, reference, or reproduce any trademarks, characters, logos, or other intellectual property belonging to any third party. Sunfall City is entirely original fiction.</p>
             <p>You may not re-sell the Card or use it for commercial purposes without our written consent.</p>
           </section>
 
@@ -117,7 +117,7 @@ export default function Terms() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-white/5">
-          <Link to="/" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">← Solara City</Link>
+          <Link to="/" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">← Sunfall City</Link>
           <span className="mx-4 text-white/10">·</span>
           <Link to="/privacy" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">Privacy Policy →</Link>
         </div>

@@ -6,7 +6,7 @@ const RENDER_LOGS = [
   "Awaiting payment confirmation…",
   "Verifying transaction with Gumroad…",
   "Stamping registry seal…",
-  "Locking resident number…",
+  "Assigning case number…",
   "Sealing holographic layers…",
   "Engraving player number…",
   "Finalizing holographic output…",
@@ -121,7 +121,7 @@ export function RenderStep({ jobId: _jobId }: { jobId: string }) {
           >
             <div className="flex items-center space-x-1.5 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-[#ff2060]" style={{ animation: "blink 1.2s step-end infinite" }} />
-              <span className="font-mono text-[8px] text-white/18 tracking-widest uppercase">Solara City Registry Log</span>
+              <span className="font-mono text-[8px] text-white/18 tracking-widest uppercase">Sunfall City Registry Log</span>
             </div>
             {RENDER_LOGS.slice(0, logIndex + 1)
               .slice(-3)
@@ -150,8 +150,8 @@ export function SuccessStep({ outputUrl, playerNumber, jobId }: { outputUrl: str
 
   const handleCopyCaption = () => {
     const caption = cardNum
-      ? `Just got my NEON DISTRICT Player Card ${cardNum} 🎮 Get yours before launch: ${shareUrl}`
-      : `Just got my NEON DISTRICT Player Card 🎮 Get yours before launch: ${shareUrl}`;
+      ? `I'm WANTED in Sunfall City ${cardNum} 🌴 Get your bounty: ${shareUrl}`
+      : `I'm WANTED in Sunfall City 🌴 Get your bounty: ${shareUrl}`;
     navigator.clipboard.writeText(caption);
     setCopiedCaption(true);
     setTimeout(() => setCopiedCaption(false), 2200);

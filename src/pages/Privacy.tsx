@@ -6,7 +6,7 @@ export default function Privacy() {
       <div className="max-w-2xl mx-auto px-6 py-16">
 
         <Link to="/" className="inline-flex items-center space-x-1.5 font-mono text-[10px] tracking-widest text-white/30 hover:text-white/60 transition-colors mb-10 uppercase">
-          <span>←</span><span>Back to Solara City</span>
+          <span>←</span><span>Back to Sunfall City</span>
         </Link>
 
         <h1 className="text-3xl font-black tracking-tight mb-1" style={{ color: "#ffc94a" }}>Privacy Policy</h1>
@@ -16,7 +16,7 @@ export default function Privacy() {
 
           <section>
             <h2 className="text-base font-bold text-white/90 mb-3 tracking-wide">1. Who we are</h2>
-            <p>Solara City Bureau of Residents is an independent creative project operated by an individual developer. For data-related enquiries: <a href="mailto:shivangsomvanshi124@gmail.com" className="hover:underline" style={{ color: "#ffc94a" }}>shivangsomvanshi124@gmail.com</a>.</p>
+            <p>Sunfall City County Sheriff is an independent creative project operated by an individual developer. For data-related enquiries: <a href="mailto:shivangsomvanshi124@gmail.com" className="hover:underline" style={{ color: "#ffc94a" }}>shivangsomvanshi124@gmail.com</a>.</p>
           </section>
 
           <section>
@@ -76,7 +76,7 @@ export default function Privacy() {
             <div className="space-y-2">
               {[
                 ["Google Gemini API", "Content moderation — your photo is sent to Google's API to check it contains a valid human face, then discarded. Google processes this under their API terms.", "ai.google.dev"],
-                ["fal.ai (Fal Inc.)", "AI image stylisation — your portrait is processed via fal.ai's inference API to apply the Solara City art style. Images are discarded after processing per their data policy.", "fal.ai/privacy"],
+                ["fal.ai (Fal Inc.)", "AI image stylisation — your portrait is processed via fal.ai's inference API to apply the Sunfall City art style. Images are discarded after processing per their data policy.", "fal.ai/privacy"],
                 ["Gumroad Inc.", "Payment processing — your name, email address, and payment details are processed by Gumroad when you purchase a Card. We receive only a confirmation that payment was completed. See Gumroad's privacy policy for details.", "gumroad.com/privacy"],
                 ["Cloudflare", "CDN and bot protection. Cloudflare may process your IP to deliver the service.", "cloudflare.com/privacypolicy"],
               ].map(([name, desc, url]) => (
@@ -138,7 +138,7 @@ export default function Privacy() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-white/5">
-          <Link to="/" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">← Solara City</Link>
+          <Link to="/" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">← Sunfall City</Link>
           <span className="mx-4 text-white/10">·</span>
           <Link to="/terms" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">Terms of Service →</Link>
         </div>

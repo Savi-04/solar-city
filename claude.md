@@ -25,15 +25,20 @@ shareable MP4s. Forked from Solara City v1 (sci-fi resident ID) and rethemed.
 | Hosting | Railway, persistent disk volume for MP4s |
 
 Two distinct fal services are in play: fal **storage** (a file host) and fal
-**models**. The browser uploads straight to fal storage and the server only
-ever handles the resulting URL.
+**models**. The browser talks to fal storage through this server's own proxy
+at `/api/fal/proxy`, which exists so `FAL_KEY` never reaches the browser. The
+image bytes therefore **do** pass through the server, as a streamed raw body.
+They are not written to disk or persisted, but "the server never sees the
+photo" is wrong.
 
 ---
 
 ## The flow, in order
 
-1. **Upload.** Browser uploads the selfie to fal storage directly and posts the
-   URL. The server never receives the image bytes from the browser.
+1. **Upload.** The browser calls `fal.storage.upload(file)`, configured with
+   `proxyUrl: "/api/fal/proxy"`. The bytes stream through this server, which
+   attaches `FAL_KEY` and forwards to fal storage, then hands back a URL. The
+   proxy allowlists fal hostnames, so it cannot be used as an open relay.
 2. **Moderation.** Server fetches that URL, base64s it, and asks Gemini to
    approve it. A `REJECT` returns 400.
    *Known issue: the job row is inserted **before** moderation, so a rejected
@@ -41,7 +46,8 @@ ever handles the resulting URL.
    player number.*
 3. **Card build (free, before payment).** `buildCardInBackground` is fired and
    **not awaited**. It calls fal to restyle the portrait, then composites four
-   SVG layers with sharp. Roughly 60 to 90 seconds. Ends at `PREVIEW_READY`.
+   SVG layers with sharp. Measured end to end at **under 10 seconds** on a
+   1024x1024 JPEG. Ends at `PREVIEW_READY`.
 4. **Preview.** The client polls every 3s and flips the screen when
    `preview_url` appears. A watermarked JPEG is shown.
 5. **Payment.** Gumroad. On completion the status becomes `DONE`, a `public_id`

@@ -28,8 +28,8 @@ function HudCorners({ color = "#00e8ff" }: { color?: string }) {
 }
 
 const FEATURES = [
-  { icon: <Star className="w-3 h-3" />, label: "Permanent resident ID — lower numbers are rarer", color: "#ffc94a" },
-  { icon: <Zap className="w-3 h-3" />, label: "AI portrait in Solara City graphic-novel style", color: "#ff6b1a" },
+  { icon: <Star className="w-3 h-3" />, label: "Permanent case file — lower numbers are rarer", color: "#ffc94a" },
+  { icon: <Zap className="w-3 h-3" />, label: "AI mugshot, relit for the Sunfall coast", color: "#ff6b1a" },
   { icon: <Shield className="w-3 h-3" />, label: "Holographic parallax card with tilt effect", color: "#00c6d4" },
   { icon: <LinkIcon className="w-3 h-3" />, label: "Shareable link + download for IG / X / TikTok", color: "#b8ff3c" },
 ];
@@ -46,8 +46,8 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
   const gumroadHref = gumroadProductUrl
     ? `${gumroadProductUrl}?wanted=${encodeURIComponent(completeUrl)}&job_id=${encodeURIComponent(jobId)}${completeToken ? `&tok=${encodeURIComponent(completeToken)}` : ""}`
     : undefined;
-  const residentId = playerNumber !== null && playerNumber !== undefined
-    ? `SC-${playerNumber.toString().padStart(8, "0")}`
+  const caseNo = playerNumber !== null && playerNumber !== undefined
+    ? `SF-${playerNumber.toString().padStart(8, "0")}`
     : "—";
 
   useEffect(() => {
@@ -114,7 +114,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
           {/* Registry stat bar */}
           <div className="w-full grid grid-cols-3 gap-2 mb-5">
             {[
-              { label: "RESIDENT ID", value: residentId, color: "#ffc94a" },
+              { label: "CASE NO", value: caseNo, color: "#ffd166" },
               { label: "DISTRICT", value: district || "—", color: "#ff6b1a" },
               { label: "ISSUED", value: "2025", color: "#00c6d4" },
             ].map((stat) => (
@@ -208,7 +208,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
             <motion.button
               onClick={() => {
                 if (gumroadHref) {
-                  trackEvent("cta:claim-resident-id");
+                  trackEvent("cta:get-on-bulletin");
                   onPay();
                   window.location.href = gumroadHref;
                 }
@@ -246,7 +246,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
           )}
 
           <p className="font-mono text-[8px] text-center text-white/14 mt-3 tracking-wide">
-            {adminKey ? "Admin session · Payment bypassed" : "Secure checkout · Powered by Gumroad · Solara City Bureau of Residents"}
+            {adminKey ? "Admin session · Payment bypassed" : "Secure checkout · Powered by Gumroad · Sunfall City County Sheriff"}
           </p>
 
         </div>

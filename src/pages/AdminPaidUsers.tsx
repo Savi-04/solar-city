@@ -109,7 +109,7 @@ export default function AdminPaidUsers() {
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#08091a" }}>
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <p className="font-mono text-[9px] tracking-[0.4em] text-white/25 uppercase mb-2">Solara City</p>
+            <p className="font-mono text-[9px] tracking-[0.4em] text-white/25 uppercase mb-2">Sunfall City</p>
             <h1 className="text-xl font-black text-white/85 tracking-tight">Admin Access</h1>
             <p className="font-mono text-[10px] text-white/30 mt-1">Paid users registry</p>
           </div>
@@ -167,7 +167,7 @@ export default function AdminPaidUsers() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
-            <p className="font-mono text-[9px] tracking-[0.4em] text-white/25 uppercase mb-1">Solara City Bureau</p>
+            <p className="font-mono text-[9px] tracking-[0.4em] text-white/25 uppercase mb-1">Sunfall City Bureau</p>
             <h1 className="text-xl font-black text-white/85">Paid Users Registry</h1>
           </div>
           <div className="flex items-center gap-6">

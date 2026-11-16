@@ -88,11 +88,11 @@ function sendCardEmail(to: string, cardUrl: string): Promise<void> {
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
   return transporter.sendMail({
-    from: `"Solara City Bureau of Residents" <${process.env.SMTP_USER}>`,
+    from: `"Sunfall City County Sheriff" <${process.env.SMTP_USER}>`,
     to,
-    subject: "Your Solara City Resident ID is ready",
-    text: `Your holographic ID card is ready.\n\nView it here: ${cardUrl}\n\nBookmark this link — it's permanent and unique to you.\n\n— Solara City Bureau of Residents`,
-    html: `<div style="background:#05050d;color:#e8e0f5;font-family:monospace;padding:32px;max-width:480px;margin:auto;border-radius:12px"><h2 style="color:#ff6b1a;margin-top:0">Solara City Bureau of Residents</h2><p>Your holographic Resident ID is ready.</p><p style="margin:24px 0"><a href="${cardUrl}" style="background:#ff2060;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">VIEW MY CARD →</a></p><p style="font-size:12px;color:#888">Or copy this link: ${cardUrl}</p><p style="font-size:12px;color:#888">Bookmark it — this link is permanent and unique to you.</p></div>`,
+    subject: "Your Sunfall City bulletin is ready",
+    text: `Your MOST WANTED bulletin is ready.\n\nView it here: ${cardUrl}\n\nBookmark this link — it's permanent and unique to you.\n\n— Sunfall City County Sheriff`,
+    html: `<div style="background:#05050d;color:#e8e0f5;font-family:monospace;padding:32px;max-width:480px;margin:auto;border-radius:12px"><h2 style="color:#ff6b1a;margin-top:0">Sunfall City County Sheriff</h2><p>Your MOST WANTED bulletin is ready.</p><p style="margin:24px 0"><a href="${cardUrl}" style="background:#ff2060;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">VIEW MY BULLETIN →</a></p><p style="font-size:12px;color:#888">Or copy this link: ${cardUrl}</p><p style="font-size:12px;color:#888">Bookmark it — this link is permanent and unique to you.</p></div>`,
   }).then(() => { console.log("Card email sent to", to); });
 }
 
@@ -280,7 +280,7 @@ async function startServer() {
       }
       name = (name || "UNKNOWN").slice(0, 50).trim();
       city = (city || "UNKNOWN").slice(0, 50).trim();
-      skill = (skill || "CITIZEN").slice(0, 30).trim();
+      skill = (skill || "LOITERING").slice(0, 30).trim();
 
       if (!SAFE_TEXT_RE.test(name) || !SAFE_TEXT_RE.test(city) || !SAFE_TEXT_RE.test(skill)) {
         return res.status(400).json({ error: "Name, city, and skill must not contain special characters (< > & \" ')" });
@@ -291,7 +291,7 @@ async function startServer() {
       }
 
       const { remaining } = getRegistryCount();
-      if (remaining <= 0) return res.status(410).json({ error: "All 2,000 Solara City resident IDs have been issued." });
+      if (remaining <= 0) return res.status(410).json({ error: "All 2,000 Sunfall City bulletin IDs have been issued." });
 
       const jobId = crypto.randomUUID();
       const completeToken = crypto.randomBytes(16).toString("hex");
@@ -1103,7 +1103,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     try {
       const stat = await fsPromises.stat(videoPath);
       res.setHeader("Content-Type", "video/mp4");
-      res.setHeader("Content-Disposition", `attachment; filename="solara-city-card.mp4"`);
+      res.setHeader("Content-Disposition", `attachment; filename="sunfall-city-wanted.mp4"`);
       res.setHeader("Content-Length", String(stat.size));
       res.setHeader("Cache-Control", "public, max-age=86400");
       createReadStream(videoPath).pipe(res);
@@ -1176,7 +1176,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     try {
       const stat = await fsPromises.stat(productVideoPath);
       res.setHeader("Content-Type", "video/mp4");
-      res.setHeader("Content-Disposition", `attachment; filename="solara-city-id-card.mp4"`);
+      res.setHeader("Content-Disposition", `attachment; filename="sunfall-city-bulletin.mp4"`);
       res.setHeader("Content-Length", String(stat.size));
       res.setHeader("Cache-Control", "public, max-age=86400");
       createReadStream(productVideoPath).pipe(res);
@@ -1266,11 +1266,11 @@ Hyper-realistic, cinematic quality, smooth motion.`;
       const cardUrl = `${base}/id/${req.params.publicId}`;
 
       const title = job?.status === "DONE" && job.name_input
-        ? `RESIDENT ${escapeXml(job.name_input.toUpperCase())} — SOLARA CITY ID`
-        : "SOLARA CITY — Holographic ID Card";
+        ? `${escapeXml(job.name_input.toUpperCase())} IS WANTED IN SUNFALL CITY`
+        : "SUNFALL CITY — Most Wanted";
       const desc = job?.status === "DONE"
-        ? `${escapeXml(job.name_input!)}, ${escapeXml(job.city_input!)} · Solara City Bureau of Residents`
-        : "Turn your selfie into a holographic game-art ID card";
+        ? `${escapeXml(job.name_input!)}, ${escapeXml(job.city_input!)} · Sunfall City County Sheriff`
+        : "Turn your selfie into a MOST WANTED bulletin. Claim your alias, your charges and your bounty.";
       const ogImage = job?.status === "DONE"
         ? `${base}/api/public/${req.params.publicId}/og-card`
         : `${base}/api/og-image`;
@@ -1299,7 +1299,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
       const html = indexHtml.replace(
         "</head>",
         `  <meta property="og:title" content="Solar City Card" />
-  <meta property="og:description" content="Turn your selfie into a holographic game-art ID card" />
+  <meta property="og:description" content="Turn your selfie into a MOST WANTED bulletin. Claim your alias, your charges and your bounty." />
   <meta property="og:image" content="${base}/api/og-image" />
   <meta property="og:image:width" content="800" />
   <meta property="og:image:height" content="1066" />
@@ -1307,7 +1307,7 @@ Hyper-realistic, cinematic quality, smooth motion.`;
   <meta property="og:url" content="${base}" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Solar City Card" />
-  <meta name="twitter:description" content="Turn your selfie into a holographic game-art ID card" />
+  <meta name="twitter:description" content="Turn your selfie into a MOST WANTED bulletin. Claim your alias, your charges and your bounty." />
   <meta name="twitter:image" content="${base}/api/og-image" />
 </head>`
       );
@@ -1335,7 +1335,7 @@ async function generateDemoCard() {
   // Insert a placeholder job row (skip player_number sequence)
   db.prepare(`
     INSERT OR IGNORE INTO jobs (id, status, name_input, city_input, district, player_number)
-    VALUES (?, 'CREATED', 'ALEX NOVA', 'SOLARA CITY', 'NEON QUARTER', 0)
+    VALUES (?, 'CREATED', 'ALEX NOVA', 'SUNFALL CITY', 'SUNFALL STRIP', 0)
   `).run(DEMO_JOB_ID);
 
   // Demo portrait: real AI-generated image from assets/demo-portrait.png

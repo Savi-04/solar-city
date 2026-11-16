@@ -6,10 +6,10 @@ const CONFIRM_LOGS = [
   "Verifying transaction signature…",
   "Cross-referencing payment ledger…",
   "Stamping registry seal…",
-  "Locking resident number…",
+  "Assigning case number…",
   "Sealing holographic layers…",
   "Awaiting confirmation signal…",
-  "Encoding citizen biometric data…",
+  "Encoding mugshot data…",
 ];
 
 type Phase = 'confirming' | 'granted' | 'timeout';
@@ -156,7 +156,7 @@ export default function PaymentConfirmingOverlay({ onClear }: { onClear: () => v
             >
               <div className="flex items-center space-x-1.5 mb-3">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#00e8ff", animation: "blink 1.2s step-end infinite" }} />
-                <span className="font-mono text-[8px] text-white/18 tracking-widest uppercase">Solara City Registry Log</span>
+                <span className="font-mono text-[8px] text-white/18 tracking-widest uppercase">Sunfall City Registry Log</span>
               </div>
               <AnimatePresence mode="wait">
                 <motion.p
