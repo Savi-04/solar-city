@@ -15,6 +15,7 @@ import * as fsPromises from "fs/promises";
 import nodemailer from "nodemailer";
 import { exec, execFile } from "child_process";
 import { promisify } from "util";
+import { buildCardSvgs, escapeXml, formatPlayerNumber } from "./src/card-template";
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
@@ -70,10 +71,6 @@ import {
   setDownloadToken,
 } from "./src/db.ts";
 
-function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-}
-
 const SAFE_TEXT_RE = /^[^<>&"'`]+$/;
 
 // Derive base URL once — used in all absolute URLs we send out
@@ -115,10 +112,6 @@ function getEditionSeal(): string {
   if (diffDays === 0) return 'DAY ONE';
   if (diffDays <= 7) return 'LAUNCH WEEK';
   return `ISSUED · ${monthStr}`;
-}
-
-function formatPlayerNumber(n: number): string {
-  return n.toString().padStart(4, '0');
 }
 
 const PORT = parseInt(process.env.PORT || "3000");
@@ -347,7 +340,7 @@ async function startServer() {
     try {
       const result = await fal.subscribe("fal-ai/nano-banana-2/edit", {
         input: {
-          prompt: `Apply a high-end AAA video game lighting and texture pass directly over the original photo. Crucially, the underlying facial geometry, bone structure, features, and identity of the subject must remain completely unaltered from the input image. Do not redraw the face; only upgrade the surface rendering quality. Apply an Unreal Engine 5 rendering style, highly detailed subsurface scattering, and cinematic volumetric lighting. Illuminate the subject with dramatic dual rim lighting—neon magenta on one side, electric cyan on the other. Dark atmospheric sci-fi background. The final result must look exactly like the original person standing inside a premium 3D video game cinematic.`,
+          prompt: `Apply a high-end AAA open-world video game lighting and texture pass directly over the original photo. Crucially, the underlying facial geometry, bone structure, features, and identity of the subject must remain completely unaltered from the input image. Do not redraw the face; only upgrade the surface rendering quality. Apply an Unreal Engine 5 rendering style, highly detailed subsurface scattering, and cinematic volumetric lighting. Light the subject with a warm golden-hour sun from the upper left, a hot magenta neon bounce on the shadow side, and a soft tangerine rim along the jaw and shoulders. Sun-bleached tropical city dusk behind the subject, deep violet sky with a bruised orange horizon, heavy atmospheric haze, shallow depth of field. Slight film grain and faint anamorphic bloom on the highlights. Confident, unbothered expression. The final result must look exactly like the original person standing in a premium crime-drama video game cinematic at sunset.`,
           image_urls: [imageUrl],
         },
         logs: true,
@@ -387,223 +380,7 @@ async function startServer() {
       .png()
       .toBuffer();
 
-    // Guilloche grain lines — teal/amber tones for Solara palette
-    const guillocheLines = (() => {
-      let paths = "";
-      for (let y = 0; y <= 533; y += 11) {
-        let d = `M 0 ${y}`;
-        for (let x = 0; x <= 400; x += 8) {
-          const dy = Math.sin((x / 400) * Math.PI * 6 + (y / 11)) * 2.5;
-          d += ` L ${x} ${y + dy}`;
-        }
-        paths += `<path d="${d}" fill="none" stroke="rgba(0,61,79,0.12)" stroke-width="0.4"/>`;
-      }
-      for (let x = 0; x <= 400; x += 13) {
-        let d = `M ${x} 0`;
-        for (let y = 0; y <= 533; y += 8) {
-          const dx = Math.sin((y / 533) * Math.PI * 8 + (x / 13)) * 2;
-          d += ` L ${x + dx} ${y}`;
-        }
-        paths += `<path d="${d}" fill="none" stroke="rgba(255,107,26,0.04)" stroke-width="0.4"/>`;
-      }
-      return paths;
-    })();
-
-    // Bureau Seal: compass rose + 6-ray sun + "SC" center
-    const bureauSeal = (() => {
-      const cx = 377, cy = 25, r = 19;
-      const ticks = Array.from({length: 8}, (_, i) => {
-        const a = (i * 45 - 90) * Math.PI / 180;
-        return `<line x1="${(cx + Math.cos(a) * r).toFixed(1)}" y1="${(cy + Math.sin(a) * r).toFixed(1)}" x2="${(cx + Math.cos(a) * (r-5)).toFixed(1)}" y2="${(cy + Math.sin(a) * (r-5)).toFixed(1)}" stroke="#ffc94a" stroke-width="0.9"/>`;
-      }).join('');
-      const starR = r - 8, innerR = (r - 8) * 0.42;
-      let pts = '';
-      for (let i = 0; i < 6; i++) {
-        const oa = (i * 60 - 90) * Math.PI / 180;
-        const ia = ((i + 0.5) * 60 - 90) * Math.PI / 180;
-        pts += `${(cx + Math.cos(oa) * starR).toFixed(1)},${(cy + Math.sin(oa) * starR).toFixed(1)} `;
-        pts += `${(cx + Math.cos(ia) * innerR).toFixed(1)},${(cy + Math.sin(ia) * innerR).toFixed(1)} `;
-      }
-      return `<g opacity="0.88"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#ffc94a" stroke-width="0.9"/>${ticks}<polygon points="${pts.trim()}" fill="#ffc94a" opacity="0.62"/><text x="${cx}" y="${(cy + 3.5).toFixed(1)}" font-family="Impact,'Arial Black',sans-serif" font-size="6" fill="#ffc94a" text-anchor="middle" font-weight="900">SC</text></g>`;
-    })();
-
-    // Fake barcode lines — bottom of card
-    const barcodeLines = (() => {
-      const pat = [2,1,3,1,2,1,1,3,2,1,1,2,3,1,1,2,1,3,2,1,1,2,1,1,3];
-      const total = pat.reduce((a,b) => a+b, 0);
-      const scale = 100 / total;
-      let cx = 20, out = '';
-      pat.forEach((u, i) => {
-        const w = (u * scale).toFixed(1);
-        if (i % 2 === 0) out += `<rect x="${cx.toFixed(1)}" y="478" width="${w}" height="24" fill="#4a6b7a" opacity="0.5"/>`;
-        cx += u * scale;
-      });
-      return out;
-    })();
-
-    const playerNumStr = formatPlayerNumber(playerNumber);
-    const residentId = `SC-${playerNumber.toString().padStart(8, '0')}`;
-    const nameFontSize = name.length <= 8 ? 26 : name.length <= 13 ? 21 : 17;
-    const nameLetterSpacing = name.length <= 8 ? 3 : 1;
-
-    // All SVGs at 2× (800×1066) with viewBox="0 0 400 533" — crisp retina rendering
-    // Card: 400×533 (3:4 ratio — ID card proportion)
-    const sharedDefs = `
-      <defs>
-        <linearGradient id="bg-main" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%"   stop-color="#003d4f"/>
-          <stop offset="100%" stop-color="#070d14"/>
-        </linearGradient>
-        <linearGradient id="amber-coral" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%"   stop-color="#ff6b1a"/>
-          <stop offset="100%" stop-color="#ff3d5a"/>
-        </linearGradient>
-        <linearGradient id="holo-strip" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"   stop-color="#ff00aa"/>
-          <stop offset="25%"  stop-color="#00ffdd"/>
-          <stop offset="50%"  stop-color="#ffee00"/>
-          <stop offset="75%"  stop-color="#aa00ff"/>
-          <stop offset="100%" stop-color="#ff00aa"/>
-        </linearGradient>
-        <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%"   stop-color="#ffc94a"/>
-          <stop offset="50%"  stop-color="#ffe08a"/>
-          <stop offset="100%" stop-color="#d4961f"/>
-        </linearGradient>
-        <radialGradient id="portrait-glow" cx="50%" cy="28%" r="40%">
-          <stop offset="0%"   stop-color="#ff6b1a" stop-opacity="0.06"/>
-          <stop offset="100%" stop-color="#070d14" stop-opacity="0"/>
-        </radialGradient>
-        <radialGradient id="edge-dark" cx="50%" cy="50%" r="65%">
-          <stop offset="55%"  stop-color="#000000" stop-opacity="0"/>
-          <stop offset="100%" stop-color="#000000" stop-opacity="0.5"/>
-        </radialGradient>
-        <clipPath id="card-clip"><rect width="400" height="533" rx="18"/></clipPath>
-      </defs>
-    `;
-
-    const bgSvg = `
-      <svg width="800" height="1066" viewBox="0 0 400 533" xmlns="http://www.w3.org/2000/svg">
-        ${sharedDefs}
-        <g clip-path="url(#card-clip)">
-          <rect width="400" height="533" fill="url(#bg-main)"/>
-          ${guillocheLines}
-          <rect x="60" y="44" width="280" height="310" fill="url(#portrait-glow)" rx="14"/>
-          <!-- Holographic diagonal strip (crosses card mid-section, below portrait) -->
-          <rect x="-200" y="322" width="800" height="32" fill="url(#holo-strip)" opacity="0.14"
-                transform="rotate(-35, 200, 338)"/>
-          <rect width="400" height="533" fill="url(#edge-dark)"/>
-        </g>
-      </svg>
-    `;
-
-    const frameSvg = `
-      <svg width="800" height="1066" viewBox="0 0 400 533" xmlns="http://www.w3.org/2000/svg">
-        ${sharedDefs}
-        <defs>
-          <mask id="portrait-window">
-            <rect width="400" height="533" rx="18" fill="white"/>
-            <rect x="70" y="50" width="260" height="300" rx="12" fill="black"/>
-          </mask>
-        </defs>
-
-        <!-- Dark teal chrome overlay (masked away at portrait window) -->
-        <rect width="400" height="533" fill="rgba(0,30,42,0.55)" rx="18" mask="url(#portrait-window)"/>
-
-        <!-- Card outer border -->
-        <rect width="400" height="533" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1" rx="18"/>
-
-        <!-- Portrait window decorative border: amber→coral gradient, 2px -->
-        <rect x="69" y="49" width="262" height="302" rx="13" fill="none" stroke="url(#amber-coral)" stroke-width="2"/>
-
-        <!-- Header bar: "SOLARA CITY" -->
-        <text x="20" y="31"
-          fill="#ff6b1a" font-family="Impact,'Arial Black',sans-serif"
-          font-size="19" font-weight="900" letter-spacing="4">SOLARA CITY</text>
-
-        <!-- Header subtitle: "BUREAU OF RESIDENTS" -->
-        <text x="20" y="43"
-          fill="#e8f4f8" font-family="Arial,sans-serif"
-          font-size="7.5" letter-spacing="3.5" opacity="0.5">BUREAU OF RESIDENTS</text>
-
-        <!-- Bureau Seal (compass rose + sun + SC) -->
-        ${bureauSeal}
-
-        <!-- Header divider (amber tint) -->
-        <rect x="0" y="50" width="400" height="0.6" fill="rgba(255,107,26,0.3)"/>
-
-        <!-- Name/city section top divider -->
-        <rect x="16" y="400" width="368" height="0.5" fill="rgba(255,255,255,0.07)"/>
-
-        <!-- Data rows section top divider -->
-        <rect x="16" y="416" width="368" height="0.3" fill="rgba(255,255,255,0.05)"/>
-
-        <!-- Data row labels -->
-        <text x="20" y="430" fill="#4a6b7a" font-family="'Courier New',monospace" font-size="7" letter-spacing="1.5">RESIDENT ID</text>
-        <text x="20" y="444" fill="#4a6b7a" font-family="'Courier New',monospace" font-size="7" letter-spacing="1.5">DISTRICT</text>
-        <text x="20" y="458" fill="#4a6b7a" font-family="'Courier New',monospace" font-size="7" letter-spacing="1.5">CLEARANCE</text>
-        <text x="20" y="472" fill="#4a6b7a" font-family="'Courier New',monospace" font-size="7" letter-spacing="1.5">ISSUED</text>
-
-        <!-- Status bar divider -->
-        <rect x="0" y="478" width="400" height="0.5" fill="rgba(255,255,255,0.06)"/>
-
-        <!-- Fake barcode (bottom-left) -->
-        ${barcodeLines}
-
-        <!-- STATUS: VERIFIED ✦ (bottom-right, lime) -->
-        <text x="384" y="498"
-          fill="#b8ff3c" font-family="'Courier New',monospace"
-          font-size="7.5" text-anchor="end" letter-spacing="1.5" font-weight="700">STATUS: VERIFIED ✦</text>
-
-        <!-- Legal disclaimer -->
-        <text x="200" y="526"
-          fill="rgba(255,255,255,0.12)" font-family="monospace"
-          font-size="4" text-anchor="middle" letter-spacing="0.8">
-          SOLARA CITY BUREAU OF RESIDENTS ✦ OFFICIAL DOCUMENT ✦ SC-2025
-        </text>
-      </svg>
-    `;
-
-    const textSvg = `
-      <svg width="800" height="1066" viewBox="0 0 400 533" xmlns="http://www.w3.org/2000/svg">
-        ${sharedDefs}
-
-        <!-- Resident number (top-right in header, subtle) -->
-        <text x="338" y="31"
-          fill="rgba(255,107,26,0.45)" font-family="'Courier New',monospace"
-          font-size="7" text-anchor="end" letter-spacing="1">#${playerNumStr}</text>
-
-        <!-- Name: bold, chrome -->
-        <text x="20" y="383"
-          fill="#e8f4f8" font-family="Impact,'Arial Black',sans-serif"
-          font-size="${nameFontSize}" font-weight="900" letter-spacing="${nameLetterSpacing}">${escapeXml(name.toUpperCase())}</text>
-
-        <!-- City: smaller, muted teal -->
-        <text x="20" y="397"
-          fill="#4a6b7a" font-family="Arial,sans-serif"
-          font-size="10.5" letter-spacing="2">${escapeXml(city.toUpperCase())}</text>
-
-        <!-- RESIDENT ID value -->
-        <text x="135" y="430"
-          fill="#e8f4f8" font-family="'Courier New',monospace"
-          font-size="7" letter-spacing="1" opacity="0.82">${escapeXml(residentId)}</text>
-
-        <!-- DISTRICT value -->
-        <text x="135" y="444"
-          fill="#e8f4f8" font-family="'Courier New',monospace"
-          font-size="7" letter-spacing="1" opacity="0.82">${escapeXml(district)}</text>
-
-        <!-- SKILL value -->
-        <text x="135" y="458"
-          fill="#b8ff3c" font-family="'Courier New',monospace"
-          font-size="7" letter-spacing="1">${escapeXml(skill.toUpperCase())}</text>
-
-        <!-- ISSUED value -->
-        <text x="135" y="472"
-          fill="#e8f4f8" font-family="'Courier New',monospace"
-          font-size="7" letter-spacing="1" opacity="0.82">${new Date().toISOString().slice(0, 10)}</text>
-      </svg>
-    `;
+    const { bgSvg, frameSvg, textSvg } = buildCardSvgs({ name, city, skill, district, playerNumber });
 
     try {
       const [bgBuffer, frameBuffer, textBuffer] = await Promise.all([
@@ -743,9 +520,9 @@ async function startServer() {
 
 CHARACTER CONSISTENCY — CRITICAL: Face, facial features, skin tone, hair, and every article of clothing must be reproduced IDENTICALLY from the portrait reference. Do not alter, substitute, redesign, or reinterpret any part of the outfit or appearance. The character looks exactly like the reference photo — only the lighting environment changes. Neutral confident stance, body completely still.
 
-Background: Indoor private garage. Three luxury vehicles — sleek sports car (left), massive monster truck (center), luxury sedan (right). Chrome shelving and neon-lit display cases line the back wall. Thin wisps of transparent smoke drift slowly.
+Background: Waterfront city strip at dusk. A low matte sports car idles behind the character (left), tall palm trees line the boulevard (right), lit storefront signs and distant high-rises glow across the water. Warm haze in the air, faint heat shimmer off the asphalt.
 
-Lighting: Powerful three-point studio setup. Strong bright key light from upper-right illuminates character clearly — face fully lit, no shadows obscuring features. Warm fill on vehicles. Crisp rim light separates character from background. No dark faces. No crushed blacks.
+Lighting: Powerful three-point setup matched to golden hour. Strong bright warm key light from upper-right illuminates character clearly — face fully lit, no shadows obscuring features. Magenta and tangerine neon fill from the signage on the shadow side. Crisp rim light separates character from background. No dark faces. No crushed blacks.
 
 Camera pans VERY SLOWLY rightward over 10 seconds. Smooth, no cuts, no shake. Ultra-realistic AAA quality.`;
 
@@ -1569,173 +1346,15 @@ async function generateDemoCard() {
     .png()
     .toBuffer();
 
-  // Guilloche grain lines — same as buildCardInBackground
-  const guillocheLines = (() => {
-    let paths = "";
-    for (let y = 0; y <= 533; y += 11) {
-      let d = `M 0 ${y}`;
-      for (let x = 0; x <= 400; x += 8) {
-        const dy = Math.sin((x / 400) * Math.PI * 6 + (y / 11)) * 2.5;
-        d += ` L ${x} ${y + dy}`;
-      }
-      paths += `<path d="${d}" fill="none" stroke="rgba(0,61,79,0.12)" stroke-width="0.4"/>`;
-    }
-    for (let x = 0; x <= 400; x += 13) {
-      let d = `M ${x} 0`;
-      for (let y = 0; y <= 533; y += 8) {
-        const dx = Math.sin((y / 533) * Math.PI * 8 + (x / 13)) * 2;
-        d += ` L ${x + dx} ${y}`;
-      }
-      paths += `<path d="${d}" fill="none" stroke="rgba(255,107,26,0.04)" stroke-width="0.4"/>`;
-    }
-    return paths;
-  })();
-
-  // Bureau Seal — same as buildCardInBackground
-  const bureauSeal = (() => {
-    const cx = 377, cy = 25, r = 19;
-    const ticks = Array.from({length: 8}, (_, i) => {
-      const a = (i * 45 - 90) * Math.PI / 180;
-      return `<line x1="${(cx + Math.cos(a) * r).toFixed(1)}" y1="${(cy + Math.sin(a) * r).toFixed(1)}" x2="${(cx + Math.cos(a) * (r-5)).toFixed(1)}" y2="${(cy + Math.sin(a) * (r-5)).toFixed(1)}" stroke="#ffc94a" stroke-width="0.9"/>`;
-    }).join('');
-    const starR = r - 8, innerR = (r - 8) * 0.42;
-    let pts = '';
-    for (let i = 0; i < 6; i++) {
-      const oa = (i * 60 - 90) * Math.PI / 180;
-      const ia = ((i + 0.5) * 60 - 90) * Math.PI / 180;
-      pts += `${(cx + Math.cos(oa) * starR).toFixed(1)},${(cy + Math.sin(oa) * starR).toFixed(1)} `;
-      pts += `${(cx + Math.cos(ia) * innerR).toFixed(1)},${(cy + Math.sin(ia) * innerR).toFixed(1)} `;
-    }
-    return `<g opacity="0.88"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#ffc94a" stroke-width="0.9"/>${ticks}<polygon points="${pts.trim()}" fill="#ffc94a" opacity="0.62"/><text x="${cx}" y="${(cy + 3.5).toFixed(1)}" font-family="Impact,'Arial Black',sans-serif" font-size="6" fill="#ffc94a" text-anchor="middle" font-weight="900">SC</text></g>`;
-  })();
-
-  // Fake barcode — same as buildCardInBackground
-  const barcodeLines = (() => {
-    const pat = [2,1,3,1,2,1,1,3,2,1,1,2,3,1,1,2,1,3,2,1,1,2,1,1,3];
-    const total = pat.reduce((a,b) => a+b, 0);
-    const scale = 100 / total;
-    let cx = 20, out = '';
-    pat.forEach((u, i) => {
-      const w = (u * scale).toFixed(1);
-      if (i % 2 === 0) out += `<rect x="${cx.toFixed(1)}" y="478" width="${w}" height="24" fill="#4a6b7a" opacity="0.5"/>`;
-      cx += u * scale;
-    });
-    return out;
-  })();
-
-  const sharedDefs = `
-    <defs>
-      <linearGradient id="bg-main" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%"   stop-color="#003d4f"/>
-        <stop offset="100%" stop-color="#070d14"/>
-      </linearGradient>
-      <linearGradient id="amber-coral" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%"   stop-color="#ff6b1a"/>
-        <stop offset="100%" stop-color="#ff3d5a"/>
-      </linearGradient>
-      <linearGradient id="holo-strip" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stop-color="#ff00aa"/>
-        <stop offset="25%"  stop-color="#00ffdd"/>
-        <stop offset="50%"  stop-color="#ffee00"/>
-        <stop offset="75%"  stop-color="#aa00ff"/>
-        <stop offset="100%" stop-color="#ff00aa"/>
-      </linearGradient>
-      <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%"   stop-color="#ffc94a"/>
-        <stop offset="50%"  stop-color="#ffe08a"/>
-        <stop offset="100%" stop-color="#d4961f"/>
-      </linearGradient>
-      <radialGradient id="portrait-glow" cx="50%" cy="28%" r="40%">
-        <stop offset="0%"   stop-color="#ff6b1a" stop-opacity="0.06"/>
-        <stop offset="100%" stop-color="#070d14" stop-opacity="0"/>
-      </radialGradient>
-      <radialGradient id="edge-dark" cx="50%" cy="50%" r="65%">
-        <stop offset="55%"  stop-color="#000000" stop-opacity="0"/>
-        <stop offset="100%" stop-color="#000000" stop-opacity="0.5"/>
-      </radialGradient>
-      <clipPath id="card-clip"><rect width="400" height="533" rx="18"/></clipPath>
-    </defs>
-  `;
-
-  const bgSvg = `
-    <svg width="800" height="1066" viewBox="0 0 400 533" xmlns="http://www.w3.org/2000/svg">
-      ${sharedDefs}
-      <g clip-path="url(#card-clip)">
-        <rect width="400" height="533" fill="url(#bg-main)"/>
-        ${guillocheLines}
-        <rect x="60" y="44" width="280" height="310" fill="url(#portrait-glow)" rx="14"/>
-        <rect x="-200" y="322" width="800" height="32" fill="url(#holo-strip)" opacity="0.14"
-              transform="rotate(-35, 200, 338)"/>
-        <rect width="400" height="533" fill="url(#edge-dark)"/>
-      </g>
-    </svg>
-  `;
-
-  const frameSvg = `
-    <svg width="800" height="1066" viewBox="0 0 400 533" xmlns="http://www.w3.org/2000/svg">
-      ${sharedDefs}
-      <defs>
-        <mask id="portrait-window">
-          <rect width="400" height="533" rx="18" fill="white"/>
-          <rect x="70" y="50" width="260" height="300" rx="12" fill="black"/>
-        </mask>
-      </defs>
-      <rect width="400" height="533" fill="rgba(0,30,42,0.55)" rx="18" mask="url(#portrait-window)"/>
-      <rect width="400" height="533" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1" rx="18"/>
-      <rect x="69" y="49" width="262" height="302" rx="13" fill="none" stroke="url(#amber-coral)" stroke-width="2"/>
-      <text x="20" y="31"
-        fill="#ff6b1a" font-family="Impact,'Arial Black',sans-serif"
-        font-size="19" font-weight="900" letter-spacing="4">SOLARA CITY</text>
-      <text x="20" y="43"
-        fill="#e8f4f8" font-family="Arial,sans-serif"
-        font-size="7.5" letter-spacing="3.5" opacity="0.5">BUREAU OF RESIDENTS</text>
-      ${bureauSeal}
-      <rect x="0" y="50" width="400" height="0.6" fill="rgba(255,107,26,0.3)"/>
-      <rect x="16" y="400" width="368" height="0.5" fill="rgba(255,255,255,0.07)"/>
-      <rect x="16" y="416" width="368" height="0.3" fill="rgba(255,255,255,0.05)"/>
-      <text x="20" y="430" fill="#4a6b7a" font-family="'Courier New',monospace" font-size="7" letter-spacing="1.5">RESIDENT ID</text>
-      <text x="20" y="444" fill="#4a6b7a" font-family="'Courier New',monospace" font-size="7" letter-spacing="1.5">DISTRICT</text>
-      <text x="20" y="458" fill="#4a6b7a" font-family="'Courier New',monospace" font-size="7" letter-spacing="1.5">CLEARANCE</text>
-      <text x="20" y="472" fill="#4a6b7a" font-family="'Courier New',monospace" font-size="7" letter-spacing="1.5">ISSUED</text>
-      <rect x="0" y="478" width="400" height="0.5" fill="rgba(255,255,255,0.06)"/>
-      ${barcodeLines}
-      <text x="384" y="498"
-        fill="#b8ff3c" font-family="'Courier New',monospace"
-        font-size="7.5" text-anchor="end" letter-spacing="1.5" font-weight="700">STATUS: VERIFIED ✦</text>
-      <text x="200" y="526"
-        fill="rgba(255,255,255,0.12)" font-family="monospace"
-        font-size="4" text-anchor="middle" letter-spacing="0.8">
-        SOLARA CITY BUREAU OF RESIDENTS ✦ OFFICIAL DOCUMENT ✦ SC-2025
-      </text>
-    </svg>
-  `;
-
-  const textSvg = `
-    <svg width="800" height="1066" viewBox="0 0 400 533" xmlns="http://www.w3.org/2000/svg">
-      ${sharedDefs}
-      <text x="338" y="31"
-        fill="rgba(255,107,26,0.45)" font-family="'Courier New',monospace"
-        font-size="7" text-anchor="end" letter-spacing="1">#0000</text>
-      <text x="20" y="383"
-        fill="#e8f4f8" font-family="Impact,'Arial Black',sans-serif"
-        font-size="26" font-weight="900" letter-spacing="3">ALEX NOVA</text>
-      <text x="20" y="397"
-        fill="#4a6b7a" font-family="Arial,sans-serif"
-        font-size="10.5" letter-spacing="2">SOLARA CITY</text>
-      <text x="135" y="430"
-        fill="#e8f4f8" font-family="'Courier New',monospace"
-        font-size="7" letter-spacing="1" opacity="0.82">SC-00000000</text>
-      <text x="135" y="444"
-        fill="#e8f4f8" font-family="'Courier New',monospace"
-        font-size="7" letter-spacing="1" opacity="0.82">NEON QUARTER</text>
-      <text x="135" y="458"
-        fill="#b8ff3c" font-family="'Courier New',monospace"
-        font-size="7" letter-spacing="1">HACKER</text>
-      <text x="135" y="472"
-        fill="#e8f4f8" font-family="'Courier New',monospace"
-        font-size="7" letter-spacing="1" opacity="0.82">${new Date().toISOString().slice(0, 10)}</text>
-    </svg>
-  `;
+  // Demo card uses the same template as the real pipeline, so the landing-page
+  // sample can never drift from what a paying customer actually receives.
+  const { bgSvg, frameSvg, textSvg } = buildCardSvgs({
+    name: 'ALEX NOVA',
+    city: 'SUNFALL CITY',
+    skill: 'GRAND LARCENY',
+    district: 'SUNFALL STRIP',
+    playerNumber: 1337,
+  });
 
   const bgBuffer    = await sharp(Buffer.from(bgSvg)).png().toBuffer();
   const frameBuffer = await sharp(Buffer.from(frameSvg)).png().toBuffer();

@@ -1,3 +1,4 @@
+import type React from "react";
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
@@ -662,20 +663,14 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
               className="inline-flex items-center justify-center space-x-2 rounded-xl px-7 py-3.5 font-black tracking-[0.14em] text-[13px] transition-all w-full max-w-[280px]"
               style={{
                 background: "linear-gradient(180deg, #0d0a18 0%, #080614 100%)",
-                border: `1px solid rgba(180,120,255,${cardVideoState === 'error' ? '0.2' : '0.35'})`,
+                border: "1px solid rgba(180,120,255,0.35)",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04), 0 0 20px rgba(140,80,255,0.08)",
-                color: cardVideoState === 'error' ? "#ffaa00" : "#b478ff",
+                color: "#b478ff",
                 cursor: "pointer",
               }}
             >
-              {cardVideoState === 'error' ? (
-                <span>⚠ Retry Card Video</span>
-              ) : (
-                <>
-                  <span style={{ fontSize: "15px" }}>✦</span>
-                  <span>Share Card</span>
-                </>
-              )}
+              <span style={{ fontSize: "15px" }}>✦</span>
+              <span>Share Card</span>
             </button>
           )}
 

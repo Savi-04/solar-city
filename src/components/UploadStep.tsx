@@ -144,7 +144,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                 className="text-4xl font-black tracking-[0.15em] text-transparent bg-clip-text"
                 style={{ backgroundImage: "linear-gradient(90deg, #ff6b1a 0%, #e8f4f8 50%, #00c6d4 100%)" }}
               >
-                SOLARA CITY
+                SUNFALL CITY
               </h1>
               <Zap className="w-5 h-5 text-[#00c6d4]" style={{ filter: "drop-shadow(0 0 6px rgba(0,198,212,0.8))" }} />
             </div>
@@ -170,7 +170,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                   {" "}REMAINING
                 </span>
               ) : (
-                <span className="font-mono text-[10px] text-white/30 tracking-widest">REGISTRY OPEN</span>
+                <span className="font-mono text-[10px] text-white/30 tracking-widest">BULLETIN ACTIVE</span>
               )}
             </div>
           </motion.div>
@@ -181,7 +181,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
             <div>
               <div className="flex items-center space-x-1.5 mb-1.5">
                 <div className="w-1 h-1 rounded-full bg-[#00e8ff]" style={{ boxShadow: "0 0 4px #00e8ff" }} />
-                <label className="text-[9px] font-mono text-[#00e8ff]/55 tracking-[0.28em] uppercase">Biometric Scan</label>
+                <label className="text-[9px] font-mono text-[#00e8ff]/55 tracking-[0.28em] uppercase">Mugshot</label>
               </div>
 
               <div
@@ -234,7 +234,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               <div>
                 <div className="flex items-center space-x-1.5 mb-1.5">
                   <div className="w-1 h-1 rounded-full bg-[#00e8ff]" style={{ boxShadow: "0 0 4px #00e8ff" }} />
-                  <label className="text-[9px] font-mono text-[#00c6d4]/55 tracking-[0.28em] uppercase">Your Name</label>
+                  <label className="text-[9px] font-mono text-[#00c6d4]/55 tracking-[0.28em] uppercase">Alias</label>
                 </div>
                 <input
                   type="text"
@@ -250,7 +250,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               <div>
                 <div className="flex items-center space-x-1.5 mb-1.5">
                   <div className="w-1 h-1 rounded-full bg-[#ff2060]" style={{ boxShadow: "0 0 4px #ff2060" }} />
-                  <label className="text-[9px] font-mono text-[#ff2060]/55 tracking-[0.28em] uppercase">City</label>
+                  <label className="text-[9px] font-mono text-[#ff2060]/55 tracking-[0.28em] uppercase">Last Seen In</label>
                 </div>
                 <input
                   type="text"
@@ -258,7 +258,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                   onChange={(e) => setCity(e.target.value)}
                   onBlur={() => setTouched(t => ({ ...t, city: true }))}
                   className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/12"
-                  placeholder="SOLARA CITY"
+                  placeholder="SUNFALL CITY"
                   maxLength={20}
                 />
                 {touched.city && !city && <p className="font-mono text-[9px] text-[#ff4444] mt-1">City is required</p>}
@@ -269,7 +269,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
             <div>
               <div className="flex items-center space-x-1.5 mb-1.5">
                 <div className="w-1 h-1 rounded-full bg-[#b8ff3c]" style={{ boxShadow: "0 0 4px #b8ff3c" }} />
-                <label className="text-[9px] font-mono text-[#b8ff3c]/55 tracking-[0.28em] uppercase">Skill / Role</label>
+                <label className="text-[9px] font-mono text-[#b8ff3c]/55 tracking-[0.28em] uppercase">Charges</label>
               </div>
               <input
                 type="text"
@@ -277,7 +277,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                 onChange={(e) => setSkill(e.target.value)}
                 onBlur={() => setTouched(t => ({ ...t, skill: true }))}
                 className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/12"
-                placeholder="HACKER · PILOT · MEDIC"
+                placeholder="GRAND LARCENY · STREET RACING"
                 maxLength={20}
               />
               {touched.skill && !skill && <p className="font-mono text-[9px] text-[#ff4444] mt-1">Skill is required</p>}
@@ -329,7 +329,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                 ) : (
                   <>
                     <Zap className="w-4 h-4 text-[#ff6b1a]" style={{ filter: "drop-shadow(0 0 4px rgba(255,107,26,0.6))" }} />
-                    <span>CLAIM MY RESIDENT ID</span>
+                    <span>PUT ME ON THE BULLETIN</span>
                     <Zap className="w-4 h-4 text-[#00c6d4]" style={{ filter: "drop-shadow(0 0 4px rgba(0,198,212,0.6))" }} />
                   </>
                 )}
