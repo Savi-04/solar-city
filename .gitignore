@@ -13,3 +13,7 @@ refactor-svg.js
 test.cjs
 metadata.json
 .antigravity/
+
+# local test fixtures
+public/_test-*
+card-preview.png
