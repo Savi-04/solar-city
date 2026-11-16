@@ -239,9 +239,18 @@ async function startServer() {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        // Google Fonts: the stylesheet comes from googleapis, the font files
+        // from gstatic. Without both, the brand typefaces silently fall back
+        // to system fonts.
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "blob:", "https://api.dicebear.com"],
-        connectSrc: ["'self'", "https://open.er-api.com", "https://*.fal.run", "https://*.fal.ai", "https://fal.media", "https://*.fal.media"],
+        connectSrc: [
+          "'self'", "https://open.er-api.com", "https://*.fal.run",
+          "https://*.fal.ai", "https://fal.media", "https://*.fal.media",
+          // Vite HMR socket in dev only
+          ...(process.env.NODE_ENV === "production" ? [] : ["ws://localhost:*", "http://localhost:*"]),
+        ],
         frameSrc: ["'none'"],
         mediaSrc: ["'self'", "blob:"],
       }
