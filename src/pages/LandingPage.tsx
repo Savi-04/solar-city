@@ -82,7 +82,7 @@ function RegistryCounter({ onSoldOut }: { onSoldOut?: (v: boolean) => void }) {
             </span>
           ) : (
             <span className="font-mono text-[10px] tracking-widest" style={{ color: "rgba(255,130,150,0.9)" }}>
-              🔥 <strong className="text-white/75">{data.issued.toLocaleString()}</strong> of 2,000 cards claimed
+              🔥 <strong className="text-white/75">{data.issued.toLocaleString()}</strong> of 2,000 bulletins issued
             </span>
           )}
         </motion.div>
@@ -176,7 +176,7 @@ function LeaderboardSection() {
     return (
       <section className="relative z-10 py-12 px-4 text-center">
         <p className="font-mono text-[9px] tracking-[0.35em] text-white/20 uppercase">
-          Hall of Citizens · No residents yet — be the first
+          The Wanted Board · Nobody on it yet — be the first
         </p>
       </section>
     );
@@ -196,11 +196,11 @@ function LeaderboardSection() {
         >
           <div className="inline-flex items-center space-x-2 mb-2">
             <div className="w-1.5 h-1.5 rounded-full bg-[#00ff7f]" style={{ animation: "pulse-green 2s ease-in-out infinite", boxShadow: "0 0 6px #00ff7f" }} />
-            <p className="font-mono text-[9px] tracking-[0.4em] text-white/25 uppercase">Registered Residents</p>
+            <p className="font-mono text-[9px] tracking-[0.4em] text-white/25 uppercase">Fugitives At Large</p>
             <div className="w-1.5 h-1.5 rounded-full bg-[#00ff7f]" style={{ animation: "pulse-green 2s ease-in-out infinite 0.5s", boxShadow: "0 0 6px #00ff7f" }} />
           </div>
-          <h2 className="text-2xl font-black text-white/85 tracking-tight">Hall of Citizens</h2>
-          <p className="font-mono text-[10px] text-white/25 mt-1 tracking-widest">First allocated · Lowest numbers rarest</p>
+          <h2 className="text-2xl font-black text-white/85 tracking-tight">The Wanted Board</h2>
+          <p className="font-mono text-[10px] text-white/25 mt-1 tracking-widest">First booked · Lowest numbers rarest</p>
         </motion.div>
 
         {/* Cards grid */}
@@ -337,7 +337,7 @@ export default function LandingPage() {
         >
           <div className="flex items-center space-x-2 mb-1">
             <div className="w-1.5 h-1.5 rounded-full bg-[#ff6b1a]" style={{ boxShadow: "0 0 5px #ff6b1a" }} />
-            <span className="font-mono text-[9px] tracking-[0.4em] text-white/30 uppercase">Solara City Bureau of Residents</span>
+            <span className="font-mono text-[9px] tracking-[0.4em] text-white/30 uppercase">Sunfall City County Sheriff</span>
             <div className="w-1.5 h-1.5 rounded-full bg-[#00c6d4]" style={{ boxShadow: "0 0 5px #00c6d4" }} />
           </div>
         </motion.div>
@@ -359,16 +359,16 @@ export default function LandingPage() {
               Your face.{" "}
               <span
                 className="text-transparent bg-clip-text"
-                style={{ backgroundImage: "linear-gradient(90deg, #ff2060 0%, #ff8c00 50%, #ffdd00 100%)" }}
+                style={{ backgroundImage: "linear-gradient(90deg, #ff1f6b 0%, #ff2d95 50%, #ff8a3d 100%)" }}
               >
-                Solara City.
+                Most wanted.
               </span>
-              <br />A card that{" "}
+              <br />Name your{" "}
               <span
                 className="text-transparent bg-clip-text"
-                style={{ backgroundImage: "linear-gradient(90deg, #00e8ff 0%, #9b59ff 100%)" }}
+                style={{ backgroundImage: "linear-gradient(90deg, #ffd166 0%, #ffe9a8 100%)" }}
               >
-                moves.
+                bounty.
               </span>
             </motion.h1>
 
@@ -378,8 +378,8 @@ export default function LandingPage() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="mt-5 font-mono text-[13px] text-white/42 leading-relaxed max-w-sm lg:max-w-none"
             >
-              Upload a selfie. Get your numbered holographic player card in Solara City style.
-              Share the flex — less than a coffee.
+              Upload a selfie. Get your mugshot, your charges and a seven-figure bounty
+              on a Sunfall City fugitive bulletin. Numbered, yours, less than a coffee.
             </motion.p>
 
             <motion.div
@@ -403,7 +403,7 @@ export default function LandingPage() {
                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,32,96,0.08), transparent)", animation: "shimmer-sweep 2.5s ease-in-out infinite" }} />
                 </div>
                 <Zap className="w-4 h-4 relative z-10" style={{ color: "#ff2060", filter: "drop-shadow(0 0 4px rgba(255,32,96,0.6))" }} />
-                <span className="relative z-10" style={{ color: "#ff2060" }}>{soldOut ? "SOLD OUT" : "Make Your Card"}</span>
+                <span className="relative z-10" style={{ color: "#ff2060" }}>{soldOut ? "BOARD FULL" : "Get On The Bulletin"}</span>
                 {!soldOut && <ArrowRight className="w-4 h-4 relative z-10" style={{ color: "#ff2060" }} />}
               </button>
 
@@ -490,22 +490,22 @@ export default function LandingPage() {
             className="text-center mb-12"
           >
             <p className="font-mono text-[9px] tracking-[0.4em] text-white/25 uppercase mb-2">How it works</p>
-            <h2 className="text-2xl font-black text-white/85 tracking-tight">Three steps to your card</h2>
+            <h2 className="text-2xl font-black text-white/85 tracking-tight">Three steps to the bulletin</h2>
           </motion.div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <Step
               num="1"
               icon={<Upload className="w-5 h-5 text-[#00e8ff]" />}
-              title="Upload your photo"
+              title="Upload your mugshot"
               desc="Pick a clear selfie. Your photo is processed in memory — never stored on our servers."
               delay={0}
             />
             <Step
               num="2"
               icon={<Cpu className="w-5 h-5 text-[#ff2060]" />}
-              title="AI stylizes your portrait"
-              desc="AI transforms your face into graphic-novel art in Solara City style. Takes about 30 seconds."
+              title="AI puts you on the run"
+              desc="Your face is relit as a golden-hour crime-drama portrait, then printed onto the bulletin. Takes about a minute."
               delay={0.1}
             />
             <Step
@@ -594,7 +594,7 @@ export default function LandingPage() {
       <footer className="relative z-10 border-t border-white/10 py-8 px-4 mt-4">
         <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="font-mono text-[9px] text-white/40 tracking-widest text-center">
-            SOLARA CITY BUREAU OF RESIDENTS · OFFICIAL DOCUMENT · SC-2025
+            SUNFALL CITY COUNTY SHERIFF · NOVELTY BULLETIN · FICTIONAL · NOT A GOVERNMENT DOCUMENT
           </p>
           <div className="flex items-center space-x-6">
             <Link to="/privacy" className="font-mono text-[9px] text-white/45 hover:text-white/70 tracking-widest uppercase transition-colors flex items-center space-x-1">

@@ -1,93 +1,118 @@
-# Neon-ID: Project Hand-off Document for Claude Code
+# Sunfall City (v2) — handoff
 
-Welcome to the Neon-ID project! This document outlines the architecture, tech stack, and current state of the application to help you seamlessly take over development.
+Upload a selfie, get a fictional **MOST WANTED** bulletin: AI-restyled mugshot,
+alias, charges, jurisdiction and a bounty figure, as a 3D-parallax card plus
+shareable MP4s. Forked from Solara City v1 (sci-fi resident ID) and rethemed.
 
-## 🎯 Project Overview
-Neon-ID is a web application that allows users to upload a selfie and generate a premium, 3D interactive "cyberpunk VIP ID card." 
-
-Initially, the project used Google Veo to generate a heavy, expensive video of the card. It has recently been refactored to use a **lightweight client-side 3D parallax effect** combined with a **headless Playwright capture pipeline**. This provides users with a fun, interactive web experience *and* a shareable MP4 video for social media (TikTok/Instagram) without incurring massive AI video generation costs.
-
----
-
-## 🛠️ Tech Stack
-- **Frontend**: React 19, Vite, TailwindCSS, React Router DOM, Framer Motion (\`motion/react\`), Lucide React.
-- **Backend**: Node.js, Express. Runs via \`tsx\` in development.
-- **Database**: SQLite3 (using \`better-sqlite3\`).
-- **AI Integrations**: \`@google/genai\` (Gemini 2.5 Flash for safety checks, Gemini 2.5 Flash Image for cyberpunk stylization).
-- **Image Processing**: \`sharp\` (for SVG-to-PNG compositing and alpha masking).
-- **Video Capture**: \`playwright\` (Chromium headless) & \`ffmpeg-static\`.
+> This file was rewritten against the actual code. The v1 copy described a
+> Playwright/Veo/Gemini-image pipeline that no longer exists.
 
 ---
 
-## 🏗️ Architecture & Core Flows
+## Stack
 
-### 1. Upload & Stylization Flow (\`server.ts\`)
-- **Route:** \`POST /api/upload\`
-- **Process:**
-  1. Accepts an image upload via \`multer\`.
-  2. Runs a fast safety check using Gemini 2.5 Flash (verifies it's an adult human face).
-  3. Returns a \`jobId\` to the client immediately so it can start polling.
-  4. In the background (\`buildCardInBackground\`), it calls Gemini 2.5 Flash Image to stylize the portrait into a neon-noir illustration.
-  5. Uses \`sharp\` to apply an elliptical alpha mask to the portrait.
-  6. Constructs 4 distinct SVG layers for the card: 
-     - **Background** (guilloché patterns)
-     - **Portrait** (the masked AI output)
-     - **Frame** (metallic borders and holographic foil)
-     - **Text** (user details and fake barcodes)
-  7. Converts these SVGs to PNG buffers via \`sharp\` and saves them as Base64 strings in the SQLite database (\`jobs.db\`).
+| Layer | What |
+|---|---|
+| Frontend | React 19, Vite 6, Tailwind v4, `motion/react`, React Router 7 |
+| Backend | Express 4 + TypeScript, `tsx` in dev, esbuild to CJS for prod |
+| DB | SQLite via `better-sqlite3`, WAL mode, single `jobs.db` |
+| Moderation | Google Gemini 2.5 Flash |
+| Stylisation | fal.ai `nano-banana-2/edit` |
+| Video | fal.ai `kling-video/o3/standard/reference-to-video` |
+| Compositing | `sharp` (SVG to PNG, alpha masking) |
+| Transcode | FFmpeg via `execFileAsync` (no shell, so no shell-injection surface) |
+| Payments | Gumroad, hosted checkout |
+| Hosting | Railway, persistent disk volume for MP4s |
 
-### 2. The 3D Interactive Web Viewer (\`src/components/InteractiveCard.tsx\`)
-- **Route:** \`/card/:id\`
-- **Process:**
-  - Fetches the 4 image layers from \`/api/jobs/:id/layers\`.
-  - Stacks them in a \`div\` with \`transform-style: preserve-3d\`.
-  - Uses \`framer-motion\` to track mouse movement (desktop) or \`deviceorientation\` gyroscope data (mobile).
-  - Applies \`translateZ\` offsets to the layers to create intense 3D parallax.
-  - Shifts a \`linear-gradient\` with a \`mix-blend-color-dodge\` over the frame layer to simulate an iridescent holographic foil catching the light.
-
-### 3. Headless Capture Pipeline (\`src/capture.ts\`)
-- **Route:** \`POST /api/checkout\` (Mocked)
-- **Process:**
-  - Social media platforms cannot embed interactive HTML/JS. To provide users with a shareable video, we use a local headless capture system.
-  - The backend spawns a hidden Playwright browser and navigates to the \`/card/:jobId\` URL.
-  - Using Playwright's native \`recordVideo\` feature, it records the page.
-  - The script injects programmatic mouse movements (\`Math.sin\` / \`Math.cos\` figure-8 patterns) to trigger the 3D parallax and holographic shimmer.
-  - After 4 seconds, the resulting \`.webm\` is read, converted to Base64, saved in the database under the \`video_b64\` column, and the temp files are deleted.
-  - The user can then download the video via \`/api/jobs/:id/mp4\`.
+Two distinct fal services are in play: fal **storage** (a file host) and fal
+**models**. The browser uploads straight to fal storage and the server only
+ever handles the resulting URL.
 
 ---
 
-## 📂 Key Files & Directories
-- **\`server.ts\`**: The Express backend. Contains the upload logic, Gemini AI calls, sharp compositing, and endpoints.
-- **\`src/db.ts\`**: The SQLite database wrapper. Manages the \`jobs\` table schema and CRUD operations.
-- **\`src/capture.ts\`**: The Playwright script responsible for automating the headless video capture.
-- **\`src/App.tsx\`**: The main React Router setup and the sequential upload/preview/success UI flow.
-- **\`src/components/InteractiveCard.tsx\`**: The highly polished 3D parallax framer-motion component.
-- **\`src/components/PreviewStep.tsx\`**: The UI shown to the user while waiting for the AI to finish, offering the "Unlock HD Video" payment button.
-- **\`jobs.db\`**: The local SQLite database file (created automatically).
+## The flow, in order
+
+1. **Upload.** Browser uploads the selfie to fal storage directly and posts the
+   URL. The server never receives the image bytes from the browser.
+2. **Moderation.** Server fetches that URL, base64s it, and asks Gemini to
+   approve it. A `REJECT` returns 400.
+   *Known issue: the job row is inserted **before** moderation, so a rejected
+   photo leaves an orphan `CREATED` row and permanently burns a sequential
+   player number.*
+3. **Card build (free, before payment).** `buildCardInBackground` is fired and
+   **not awaited**. It calls fal to restyle the portrait, then composites four
+   SVG layers with sharp. Roughly 60 to 90 seconds. Ends at `PREVIEW_READY`.
+4. **Preview.** The client polls every 3s and flips the screen when
+   `preview_url` appears. A watermarked JPEG is shown.
+5. **Payment.** Gumroad. On completion the status becomes `DONE`, a `public_id`
+   and `download_token` are minted, and `triggerVideoIfReady` starts the
+   **character video only**.
+6. **Videos.** Character video (10s) auto-fires at payment. Card video (8s) is
+   **on demand**, only when the user asks. Each budgets `WAIT_SECS = 300`.
+
+**The card is generated before payment. Payment buys the permanent link, the
+download token and the videos.** That ordering is deliberate: it is why v1
+converted at ~74% from preview to paid.
+
+### Known gaps
+- **No completion notification for videos.** The client poll is the only
+  delivery mechanism; close the tab and nothing tells you, and retries stop.
+  The only email sent is the card link, on the webhook path, if SMTP is set.
+- `/api/jobs/:id/layers` has **no payment check** — the unwatermarked card is
+  reachable pre-payment. Deliberate for conversion; the random job UUID is the
+  de-facto capability token.
+- Gemini **fails open**: if moderation errors, the upload proceeds.
+- Retry counters live in memory, so they reset on deploy and break past one instance.
+- No tests. No error tracking.
 
 ---
 
-## 🚀 Running the Project
-1. **Environment Variables**: Ensure you have a \`.env\` file in the root with:
-   \`\`\`env
-   GEMINI_API_KEY=your_gemini_api_key
-   \`\`\`
-2. **Start the Dev Server**: 
-   \`\`\`bash
-   npm run dev
-   \`\`\`
-   This uses \`tsx\` to run \`server.ts\` directly. Vite middleware handles the React frontend.
-3. **Access**: The app is served at \`http://localhost:3000\`.
+## Key files
+
+| Path | Role |
+|---|---|
+| `server.ts` | Express app, fal/Gemini calls, Gumroad, all endpoints |
+| `src/card-template.ts` | **Card artwork, single source of truth** |
+| `src/db.ts` | SQLite schema, migrations, CRUD |
+| `src/App.tsx` | Router plus the upload/preview/success flow; 3s poll |
+| `src/components/InteractiveCard.tsx` | 3D parallax viewer, video download |
+| `src/pages/LandingPage.tsx` | Marketing page and demo card |
+| `src/pages/AnalyticsDashboard.tsx` | Self-hosted analytics at `/analytics` |
+| `scripts/preview-card.ts` | Render the card to PNG, no API calls |
+
+**Change card art in `src/card-template.ts` only.** Both the real pipeline and
+the landing-page demo render through `buildCardSvgs`, so they cannot drift.
+v1 had this duplicated in two places and they had already diverged.
 
 ---
 
-## 📌 Current State & Next Steps
-- **State**: The MVP is fully functional. The local Playwright capture pipeline works perfectly and replaces the older, slower Veo logic.
-- **Database Migrations**: The schema was recently updated to include \`bg_layer_b64\`, \`frame_layer_b64\`, \`portrait_layer_b64\`, \`text_layer_b64\`, and \`video_b64\`. 
-- **Areas for Improvement**:
-  - Implement actual Stripe integration in \`/api/checkout\`.
-  - Refine the FFmpeg transcoding if strict \`.mp4\` (H.264) compatibility is required (currently serves Playwright's native \`.webm\` format under the \`/mp4\` endpoint, which works in modern browsers but may need conversion for iOS).
-  - Handle background cleanup of old jobs from the SQLite DB.
+## Running
 
-Good luck, Claude! 🤖✨
+```bash
+npm install
+npm run dev     # tsx server.ts, Vite middleware, http://localhost:3000
+npm run lint    # tsc --noEmit, currently clean
+npm run build   # vite build + esbuild server to dist/server.cjs
+```
+
+Preview the card design without spending any API credits:
+
+```bash
+npx tsx scripts/preview-card.ts out.png
+```
+
+`.env` needs `GEMINI_API_KEY`, `FAL_KEY`, Gumroad vars, and `ADMIN_SECRET`.
+See `.env.example`.
+
+Admin bypass (skips payment): visit `/?admin_mode=<ADMIN_SECRET>`.
+The key is stashed in `sessionStorage` and stripped from the URL.
+
+---
+
+## Branding constraint
+
+This rides a cultural moment but must not borrow anyone's trademarks. Do not
+introduce "GTA", "Grand Theft Auto", "Vice City", "Leonida", Rockstar or
+Take-Two names, logos, fonts or character likenesses anywhere in the product,
+copy, metadata or ads. The sun-bleached neon crime-city *aesthetic* is a genre
+and is fine. The names are not.

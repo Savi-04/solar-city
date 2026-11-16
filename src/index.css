@@ -11,10 +11,10 @@
   --color-neon-green: #00ff7f;
   --color-neon-purple: #9b59ff;
 
-  --color-bg-dark: #08091a;
-  --color-bg-panel: #0f1220;
-  --color-bg-surface: #141727;
-  --color-bg-raised: #1d2035;
+  --color-bg-dark: #0a0414;
+  --color-bg-panel: #130a24;
+  --color-bg-surface: #190d2d;
+  --color-bg-raised: #221239;
 }
 
 /* ── Registered CSS property for conic gradient rotation ── */
