@@ -1,0 +1,38 @@
+{
+  "palettes": [
+    "candy-on-black"
+  ],
+  "types": [
+    "funnel"
+  ],
+  "dealt": [
+    "sora",
+    "mona",
+    "anybody",
+    "funnel",
+    "urbanist",
+    "mona"
+  ],
+  "moments": [
+    {
+      "id": "line-carries-colour",
+      "at": "2026-11-16T22:03:42.159Z",
+      "seed": "9f042bee"
+    },
+    {
+      "id": "liquid-type",
+      "at": "2026-11-16T22:03:42.159Z",
+      "seed": "9f042bee"
+    },
+    {
+      "id": "word-highlight",
+      "at": "2026-11-16T22:05:08.140Z",
+      "seed": "ad98def2"
+    },
+    {
+      "id": "iris-opens",
+      "at": "2026-11-16T22:05:08.140Z",
+      "seed": "ad98def2"
+    }
+  ]
+}

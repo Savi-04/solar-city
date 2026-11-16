@@ -1,0 +1,32 @@
+{
+ "start": "2026-11-16T22:03:03.131Z",
+ "round": 0,
+ "idle": 0,
+ "errors": 0,
+ "status": "active",
+ "history": [
+  {
+   "at": "2026-11-16T22:06:49.088Z",
+   "mode": "hook",
+   "host": "claude",
+   "decision": "block",
+   "reason": "a build is active in /Users/savitanshu/Desktop/SaaS_projects/sunfall-city-v2, but index.html is a framework's source shell (its sections exist only once it is s",
+   "stopHookActive": false
+  }
+ ],
+ "max": 3,
+ "marker": {
+  "page": "index.html",
+  "url": null,
+  "root": null,
+  "kind": "gaming",
+  "category": "a personalised MOST WANTED bulletin made from your selfie",
+  "primary": "Get on the bulletin",
+  "rounds": 3,
+  "start": "2026-11-16T22:03:03.131Z",
+  "by": "gate.mjs --start"
+ },
+ "setupTold": true,
+ "session": "733149ff-2c48-4705-aa1a-b8e9a07fc143",
+ "at": "2026-11-16T22:06:49.089Z"
+}
