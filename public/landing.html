@@ -12,7 +12,7 @@
 <meta name="site-kind" content="software">
 <title>Sunfall City — Most Wanted</title>
 <meta name="description" content="Upload a selfie and the Sunfall City Sheriff's Office issues you a MOST WANTED bulletin: an alias, charges, a jurisdiction and a bounty. About a minute.">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#1a1624">
 <link rel="icon" type="image/png" href="/favicon.png">
 <meta property="og:title" content="Sunfall City — Most Wanted">
 <meta property="og:description" content="Upload a selfie. Get your alias, your charges and your bounty on a Sunfall City fugitive bulletin.">
@@ -33,7 +33,7 @@
 <link rel="stylesheet" href="/assets/moments/word-highlight/moment.css">
 <style>
 :root {
-  --p-bg: #000000; --p-surface: #0d0d0d; --p-ink: #ffffff; --p-muted: #999999;
+  --p-bg: #1a1624; --p-surface: #262133; --p-ink: #ffffff; --p-muted: #d4d0de;
   --p-accent: #93f1f7; --p-accent-ink: #000000; --p-action: #93f1f7; --p-action-ink: #000000;
   --p-inv-bg: #9ae187; --p-inv-surface: #8bcc7a; --p-inv-ink: #000000; --p-inv-muted: #24391e;
   --p-inv-accent: #000000; --p-inv-accent-ink: #9ae187; --p-inv-action: #000000; --p-inv-action-ink: #9ae187;
@@ -48,13 +48,23 @@
    The kit's window falls back to a sand ground (#d9ccb7), which is a beige
    slab on this near-black palette, so the window takes the page's own
    surface and the board covers it instead of floating in it. */
-.hero--centred .hero__window { --ground-bg: #0d0d0d; }
+.hero--centred .hero__window { --ground-bg: var(--p-surface); }
 .board { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center top; }
 /* a phone's window is taller than it is wide against this 2.67 strip, so the
    board fills it and the middle bulletin reads whole; contain would leave it
    a stamp in an empty frame */
 @media (max-width: 639px) { .board { object-fit: cover; } }
 .close__word { line-height: 1; }
+/* the kit sets the dark footer 28% toward black (rgb 13,10,19 on this page), the
+   darkest slab on the site; 12% keeps it a step under the page without the black */
+html[data-tone="dark"] .footer--dark { --bg: color-mix(in oklab, var(--p-bg) 88%, #000); }
+/* the bounty statement: words not yet reached rest at 72% ink, not the kit's 50%,
+   so the sentence reads before the scroll lights it */
+@media (prefers-reduced-motion: no-preference) {
+  .mo-wh .mo-w { color: color-mix(in oklab, var(--ink) 72%, var(--bg)); }
+  .mo-wh .mo-w.is-on { color: var(--ink); }
+  .mo-wh strong .mo-w.is-on { color: var(--accent); }
+}
 /* Every section after the hero is one screen unless it says otherwise. */
 #how, #bounty, #issued { --h: 1; }
 
@@ -112,13 +122,13 @@
 .price-was { font-family: var(--font-mono); text-decoration: line-through;
   color: color-mix(in oklab, var(--ink) 78%, var(--bg)); }
 .get img, .steps img { display: block; width: 100%; height: auto; border-radius: 10px; }
-.panel { --ground-bg: #0d0d0d; }
+.panel { --ground-bg: var(--p-surface); }
 .get .panel { max-height: 360px; overflow: hidden; border-radius: 10px; }
 .get .panel img { object-fit: cover; object-position: top; height: 360px; }
 .steps .panel { border-radius: 10px; overflow: hidden; }
 /* the third step is the bulletin itself: the panel's box is narrower than the
    card, so cover cut "SUNFALL CITY" to "NFALL CITY". It fits whole instead. */
-.steps article:nth-of-type(3) .panel { background: #0d0d0d; --ground-bg: #0d0d0d; }
+.steps article:nth-of-type(3) .panel { background: var(--p-surface); --ground-bg: var(--p-surface); }
 .steps article:nth-of-type(3) img { object-fit: contain; }
 </style>
 <script type="module">

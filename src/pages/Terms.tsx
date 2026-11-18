@@ -2,15 +2,15 @@ import { Link } from "react-router-dom";
 
 export default function Terms() {
   return (
-    <div className="min-h-screen" style={{ background: "#05050d", color: "#e8e0f5" }}>
+    <div className="min-h-screen" style={{ background: "#0d1024", color: "#e8e0f5" }}>
       <div className="max-w-2xl mx-auto px-6 py-16">
 
-        <Link to="/" className="inline-flex items-center space-x-1.5 font-mono text-[10px] tracking-widest text-white/30 hover:text-white/60 transition-colors mb-10 uppercase">
+        <Link to="/" className="inline-flex items-center space-x-1.5 font-mono text-[10px] tracking-widest text-white/60 hover:text-white/90 transition-colors mb-10 uppercase">
           <span>←</span><span>Back to Sunfall City</span>
         </Link>
 
         <h1 className="text-3xl font-black tracking-tight mb-1" style={{ color: "#ff6b1a" }}>Terms of Service</h1>
-        <p className="font-mono text-[10px] text-white/30 tracking-widest mb-10">Last updated: June 2025</p>
+        <p className="font-mono text-[10px] text-white/60 tracking-widest mb-10">Last updated: June 2025</p>
 
         <div className="space-y-8 text-[14px] leading-relaxed text-white/65">
 
@@ -51,7 +51,7 @@ export default function Terms() {
                 ["Refund policy", "Because Cards are digital goods delivered immediately on payment, we do not offer refunds except where required by applicable law. Under the EU Consumer Rights Directive, the 14-day cooling-off period does not apply to digital content that has been fully delivered with the consumer's prior consent (Article 16(m)). If you believe you are entitled to a refund, contact us at shivangsomvanshi124@gmail.com within 14 days of purchase."],
               ].map(([label, desc]) => (
                 <li key={label} className="flex items-start space-x-3">
-                  <span className="text-white/30 mt-0.5 shrink-0">·</span>
+                  <span className="text-white/60 mt-0.5 shrink-0">·</span>
                   <span><strong className="text-white/80">{label}:</strong> {desc}</span>
                 </li>
               ))}
@@ -77,7 +77,7 @@ export default function Terms() {
                 "Use the output for fraud, impersonation, or any illegal purpose.",
               ].map((item) => (
                 <li key={item} className="flex items-start space-x-3">
-                  <span className="text-white/30 mt-0.5 shrink-0">·</span><span>{item}</span>
+                  <span className="text-white/60 mt-0.5 shrink-0">·</span><span>{item}</span>
                 </li>
               ))}
             </ul>
@@ -98,7 +98,7 @@ export default function Terms() {
                 "Any indirect, incidental, or consequential losses.",
               ].map((item) => (
                 <li key={item} className="flex items-start space-x-3">
-                  <span className="text-white/30 mt-0.5 shrink-0">·</span><span>{item}</span>
+                  <span className="text-white/60 mt-0.5 shrink-0">·</span><span>{item}</span>
                 </li>
               ))}
             </ul>
@@ -117,9 +117,9 @@ export default function Terms() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-white/5">
-          <Link to="/" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">← Sunfall City</Link>
+          <Link to="/" className="font-mono text-[10px] text-white/60 hover:text-white/90 tracking-widest uppercase transition-colors">← Sunfall City</Link>
           <span className="mx-4 text-white/10">·</span>
-          <Link to="/privacy" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">Privacy Policy →</Link>
+          <Link to="/privacy" className="font-mono text-[10px] text-white/60 hover:text-white/90 tracking-widest uppercase transition-colors">Privacy Policy →</Link>
         </div>
 
       </div>

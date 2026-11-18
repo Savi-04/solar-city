@@ -71,7 +71,7 @@ export default function PaymentConfirmingOverlay({ onClear }: { onClear: () => v
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden select-none"
-      style={{ background: "#05050d" }}
+      style={{ background: "#0d1024" }}
     >
       {/* Grid */}
       <div
@@ -145,7 +145,7 @@ export default function PaymentConfirmingOverlay({ onClear }: { onClear: () => v
             >
               AWAITING PAYMENT
             </h2>
-            <p className="font-mono text-[10px] tracking-[0.3em] text-white/28 mb-8 text-center uppercase">
+            <p className="font-mono text-[10px] tracking-[0.3em] text-white/60 mb-8 text-center uppercase">
               Confirming with Gumroad
             </p>
 
@@ -156,7 +156,7 @@ export default function PaymentConfirmingOverlay({ onClear }: { onClear: () => v
             >
               <div className="flex items-center space-x-1.5 mb-3">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#00e8ff", animation: "blink 1.2s step-end infinite" }} />
-                <span className="font-mono text-[8px] text-white/18 tracking-widest uppercase">Sunfall City Registry Log</span>
+                <span className="font-mono text-[8px] text-white/60 tracking-widest uppercase">Sunfall City Registry Log</span>
               </div>
               <AnimatePresence mode="wait">
                 <motion.p
@@ -173,7 +173,7 @@ export default function PaymentConfirmingOverlay({ onClear }: { onClear: () => v
               </AnimatePresence>
             </div>
 
-            <p className="font-mono text-[9px] text-white/18 text-center tracking-wide leading-relaxed">
+            <p className="font-mono text-[9px] text-white/60 text-center tracking-wide leading-relaxed">
               You can safely close this page —<br />your card will be here when you return
             </p>
           </motion.div>
@@ -214,7 +214,7 @@ export default function PaymentConfirmingOverlay({ onClear }: { onClear: () => v
               ACCESS GRANTED
             </motion.h2>
             <motion.p
-              className="font-mono text-[10px] text-white/28 tracking-[0.3em] uppercase"
+              className="font-mono text-[10px] text-white/60 tracking-[0.3em] uppercase"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.45 }}
@@ -242,7 +242,7 @@ export default function PaymentConfirmingOverlay({ onClear }: { onClear: () => v
             <h2 className="font-black tracking-widest mb-3 text-[1.1rem]" style={{ color: "#ffc94a" }}>
               TAKING LONGER THAN EXPECTED
             </h2>
-            <p className="font-mono text-[10px] text-white/35 mb-6 leading-relaxed">
+            <p className="font-mono text-[10px] text-white/60 mb-6 leading-relaxed">
               Your payment was received by Gumroad. We're still waiting on confirmation from our system — this can happen if the payment verification is delayed.
             </p>
 
@@ -250,17 +250,17 @@ export default function PaymentConfirmingOverlay({ onClear }: { onClear: () => v
               className="rounded-xl p-4 w-full mb-5 text-left"
               style={{ background: "rgba(255,196,74,0.04)", border: "1px solid rgba(255,196,74,0.13)" }}
             >
-              <p className="font-mono text-[9px] text-white/35 mb-1.5 uppercase tracking-widest">Contact us with your Gumroad Order ID:</p>
+              <p className="font-mono text-[9px] text-white/60 mb-1.5 uppercase tracking-widest">Contact us with your Gumroad Order ID:</p>
               <p className="font-mono text-[11px] font-bold" style={{ color: "#ffc94a" }}>kishanbro8@gmail.com</p>
             </div>
 
-            <p className="font-mono text-[9px] text-white/20 mb-6 leading-relaxed">
+            <p className="font-mono text-[9px] text-white/60 mb-6 leading-relaxed">
               Or simply return to this page later — your card will appear automatically once confirmed.
             </p>
 
             <button
               onClick={onClear}
-              className="font-mono text-[9px] tracking-widest text-white/20 hover:text-white/40 uppercase transition-colors underline"
+              className="font-mono text-[9px] tracking-widest text-white/60 hover:text-white/90 uppercase transition-colors underline"
             >
               ← Return to homepage
             </button>

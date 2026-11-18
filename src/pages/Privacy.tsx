@@ -2,15 +2,15 @@ import { Link } from "react-router-dom";
 
 export default function Privacy() {
   return (
-    <div className="min-h-screen" style={{ background: "#05050d", color: "#e8e0f5" }}>
+    <div className="min-h-screen" style={{ background: "#0d1024", color: "#e8e0f5" }}>
       <div className="max-w-2xl mx-auto px-6 py-16">
 
-        <Link to="/" className="inline-flex items-center space-x-1.5 font-mono text-[10px] tracking-widest text-white/30 hover:text-white/60 transition-colors mb-10 uppercase">
+        <Link to="/" className="inline-flex items-center space-x-1.5 font-mono text-[10px] tracking-widest text-white/60 hover:text-white/90 transition-colors mb-10 uppercase">
           <span>←</span><span>Back to Sunfall City</span>
         </Link>
 
         <h1 className="text-3xl font-black tracking-tight mb-1" style={{ color: "#ffc94a" }}>Privacy Policy</h1>
-        <p className="font-mono text-[10px] text-white/30 tracking-widest mb-10">Last updated: June 2025 · GDPR compliant</p>
+        <p className="font-mono text-[10px] text-white/60 tracking-widest mb-10">Last updated: June 2025 · GDPR compliant</p>
 
         <div className="space-y-8 text-[14px] leading-relaxed text-white/65">
 
@@ -63,7 +63,7 @@ export default function Privacy() {
                 "Comply with legal obligations (consent logging).",
               ].map((item) => (
                 <li key={item} className="flex items-start space-x-3">
-                  <span className="text-white/30 mt-0.5 shrink-0">·</span><span>{item}</span>
+                  <span className="text-white/60 mt-0.5 shrink-0">·</span><span>{item}</span>
                 </li>
               ))}
             </ul>
@@ -83,7 +83,7 @@ export default function Privacy() {
                 <div key={name} className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <p className="font-bold text-white/80 text-[13px] mb-0.5">{name}</p>
                   <p className="text-[13px]">{desc}</p>
-                  <p className="font-mono text-[10px] text-white/30 mt-1">{url}</p>
+                  <p className="font-mono text-[10px] text-white/60 mt-1">{url}</p>
                 </div>
               ))}
             </div>
@@ -99,7 +99,7 @@ export default function Privacy() {
                 "Hashed IP addresses — deleted with the consent log entry.",
               ].map((item) => (
                 <li key={item} className="flex items-start space-x-3">
-                  <span className="text-white/30 mt-0.5 shrink-0">·</span><span>{item}</span>
+                  <span className="text-white/60 mt-0.5 shrink-0">·</span><span>{item}</span>
                 </li>
               ))}
             </ul>
@@ -117,7 +117,7 @@ export default function Privacy() {
                 ["Complaint", "Lodge a complaint with your national data protection authority."],
               ].map(([right, desc]) => (
                 <li key={right} className="flex items-start space-x-3">
-                  <span className="text-white/30 mt-0.5 shrink-0">·</span>
+                  <span className="text-white/60 mt-0.5 shrink-0">·</span>
                   <span><strong className="text-white/70">{right}:</strong> {desc}</span>
                 </li>
               ))}
@@ -138,9 +138,9 @@ export default function Privacy() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-white/5">
-          <Link to="/" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">← Sunfall City</Link>
+          <Link to="/" className="font-mono text-[10px] text-white/60 hover:text-white/90 tracking-widest uppercase transition-colors">← Sunfall City</Link>
           <span className="mx-4 text-white/10">·</span>
-          <Link to="/terms" className="font-mono text-[10px] text-white/25 hover:text-white/50 tracking-widest uppercase transition-colors">Terms of Service →</Link>
+          <Link to="/terms" className="font-mono text-[10px] text-white/60 hover:text-white/90 tracking-widest uppercase transition-colors">Terms of Service →</Link>
         </div>
 
       </div>

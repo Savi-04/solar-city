@@ -110,7 +110,7 @@
 html { scroll-behavior: smooth; }
 
 body {
-  background-color: #08091a;
+  background-color: #0e1126;
   color: rgba(255, 255, 255, 0.92);
   min-height: 100vh;
   margin: 0;
@@ -147,7 +147,7 @@ body::after {
 /* ──────────────────────── Skeuomorphic Panel ──────────────────────── */
 
 .skeuo-panel {
-  background-color: #0b0e1e;
+  background-color: #131735;
   background-image:
     repeating-linear-gradient(
       45deg,
@@ -305,6 +305,6 @@ body::after {
 /* ──────────────────────── Scrollbar ──────────────────────── */
 
 ::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: #05050d; }
+::-webkit-scrollbar-track { background: #0d1024; }
 ::-webkit-scrollbar-thumb { background: rgba(0,232,255,0.25); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,232,255,0.45); }

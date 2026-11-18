@@ -77,9 +77,9 @@ export function RenderStep({ jobId: _jobId }: { jobId: string }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
                 transition={{ duration: 0.3 }}
-                className="font-mono text-[10px] text-white/28 mt-2.5 tracking-widest"
+                className="font-mono text-[10px] text-white/60 mt-2.5 tracking-widest"
               >
-                <span className="text-[#ff2060]/60">▶</span> {RENDER_LOGS[logIndex]}
+                <span className="text-[#ff2060]">▶</span> {RENDER_LOGS[logIndex]}
               </motion.p>
             </AnimatePresence>
           </div>
@@ -106,8 +106,8 @@ export function RenderStep({ jobId: _jobId }: { jobId: string }) {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[10px] text-white/22 tracking-widest">{Math.floor(progress)}% COMPILED</span>
-            <span className="font-mono text-[10px] text-white/20 tracking-widest">ETA ~1–2 MIN</span>
+            <span className="font-mono text-[10px] text-white/60 tracking-widest">{Math.floor(progress)}% COMPILED</span>
+            <span className="font-mono text-[10px] text-white/60 tracking-widest">ETA ~1–2 MIN</span>
           </div>
 
           {/* Terminal log mini panel */}
@@ -121,12 +121,12 @@ export function RenderStep({ jobId: _jobId }: { jobId: string }) {
           >
             <div className="flex items-center space-x-1.5 mb-2">
               <div className="w-1.5 h-1.5 rounded-full bg-[#ff2060]" style={{ animation: "blink 1.2s step-end infinite" }} />
-              <span className="font-mono text-[8px] text-white/18 tracking-widest uppercase">Sunfall City Registry Log</span>
+              <span className="font-mono text-[8px] text-white/60 tracking-widest uppercase">Sunfall City Registry Log</span>
             </div>
             {RENDER_LOGS.slice(0, logIndex + 1)
               .slice(-3)
               .map((log, i) => (
-                <p key={i} className={`font-mono text-[9px] tracking-wide ${i === Math.min(logIndex, 2) ? "text-[#ff2060]/70" : "text-white/18"}`}>
+                <p key={i} className={`font-mono text-[9px] tracking-wide ${i === Math.min(logIndex, 2) ? "text-[#ff2060]" : "text-white/60"}`}>
                   {">"} {log}
                 </p>
               ))}
@@ -201,7 +201,7 @@ export function SuccessStep({ outputUrl, playerNumber, jobId }: { outputUrl: str
               PLAYER {cardNum} REGISTERED
             </p>
           )}
-          <p className="font-mono text-[9px] text-white/22 tracking-widest mb-6 uppercase">
+          <p className="font-mono text-[9px] text-white/60 tracking-widest mb-6 uppercase">
             Holographic ID forged &amp; sealed
           </p>
 
@@ -220,7 +220,7 @@ export function SuccessStep({ outputUrl, playerNumber, jobId }: { outputUrl: str
             )}
           </div>
 
-          <p className="font-mono text-[8px] text-white/18 mb-5 tracking-widest uppercase">
+          <p className="font-mono text-[8px] text-white/60 mb-5 tracking-widest uppercase">
             {isCardImage ? "⚠ HD Card Image (Veo unavailable)" : "✦ AI-Generated Holographic Video"}
           </p>
 
@@ -250,7 +250,7 @@ export function SuccessStep({ outputUrl, playerNumber, jobId }: { outputUrl: str
             {/* Copy TikTok caption */}
             <button
               onClick={handleCopyCaption}
-              className="skeuo-btn w-full flex items-center justify-center space-x-2 rounded-xl py-3 font-mono text-xs tracking-widest text-white/40 relative overflow-hidden group"
+              className="skeuo-btn w-full flex items-center justify-center space-x-2 rounded-xl py-3 font-mono text-xs tracking-widest text-white/60 relative overflow-hidden group"
             >
               <AnimatePresence mode="wait">
                 {copiedCaption ? (
@@ -270,7 +270,7 @@ export function SuccessStep({ outputUrl, playerNumber, jobId }: { outputUrl: str
             {/* Copy card link */}
             <button
               onClick={handleCopyLink}
-              className="skeuo-btn w-full flex items-center justify-center space-x-2 rounded-xl py-3 font-mono text-xs tracking-widest text-white/40 relative overflow-hidden group"
+              className="skeuo-btn w-full flex items-center justify-center space-x-2 rounded-xl py-3 font-mono text-xs tracking-widest text-white/60 relative overflow-hidden group"
             >
               <AnimatePresence mode="wait">
                 {copiedLink ? (

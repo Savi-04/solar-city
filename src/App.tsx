@@ -170,7 +170,7 @@ function MainFlow() {
     <div className="min-h-screen flex flex-col pt-12 pb-24 px-4 relative">
       {/* Back to landing */}
       <div className="absolute top-4 left-4 z-20">
-        <Link to="/" className="font-mono text-[9px] tracking-widest text-white/20 hover:text-white/50 transition-colors uppercase">
+        <Link to="/" className="font-mono text-[9px] tracking-widest text-white/60 hover:text-white/90 transition-colors uppercase">
           ← Sunfall City
         </Link>
       </div>
@@ -234,7 +234,7 @@ function MainFlow() {
                   FUGITIVE #{playerNumber.toString().padStart(4, "0")} BOOKED
                 </p>
               )}
-              <p className="font-mono text-[10px] text-white/25 tracking-widest mb-7 uppercase">
+              <p className="font-mono text-[10px] text-white/60 tracking-widest mb-7 uppercase">
                 Your Sunfall City bulletin has been filed &amp; sealed
               </p>
 
@@ -267,7 +267,7 @@ function MainFlow() {
                       : `I'm WANTED in Sunfall City 🌴 Get your bounty: ${url}`;
                     navigator.clipboard.writeText(caption);
                   }}
-                  className="skeuo-btn w-full rounded-xl py-3 font-mono text-xs tracking-widest text-white/35"
+                  className="skeuo-btn w-full rounded-xl py-3 font-mono text-xs tracking-widest text-white/60"
                 >
                   COPY SHARE CAPTION
                 </button>

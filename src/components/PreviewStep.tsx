@@ -81,7 +81,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
               </h2>
               <div className="w-1.5 h-1.5 rounded-full bg-[#00ff7f]" style={{ boxShadow: "0 0 6px #00ff7f", animation: "pulse-green 2s ease-in-out infinite 0.5s" }} />
             </div>
-            <p className="font-mono text-[9px] tracking-[0.32em] text-white/22 uppercase">Lock in your spot before it&apos;s gone</p>
+            <p className="font-mono text-[9px] tracking-[0.32em] text-white/60 uppercase">Lock in your spot before it&apos;s gone</p>
           </div>
 
           {/* Card in HUD frame */}
@@ -107,7 +107,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
               <HudCorners color="#ff2060" />
             </div>
             <div className="absolute -bottom-5 inset-x-0 text-center">
-              <span className="font-mono text-[8px] text-white/18 tracking-[0.4em] uppercase">Preview Mode Active</span>
+              <span className="font-mono text-[8px] text-white/60 tracking-[0.4em] uppercase">Preview Mode Active</span>
             </div>
           </motion.div>
 
@@ -119,7 +119,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
               { label: "ISSUED", value: "2025", color: "#00c6d4" },
             ].map((stat) => (
               <div key={stat.label} className="hud-stat rounded-lg py-2 text-center">
-                <p className="font-mono text-[8px] text-white/22 tracking-widest">{stat.label}</p>
+                <p className="font-mono text-[8px] text-white/60 tracking-widest">{stat.label}</p>
                 <p className="font-mono text-[10px] font-bold tracking-wider mt-0.5" style={{ color: stat.color }}>{stat.value}</p>
               </div>
             ))}
@@ -134,7 +134,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
               border: "1px solid rgba(255,255,255,0.05)",
             }}
           >
-            <p className="font-mono text-[9px] text-white/18 tracking-[0.35em] uppercase mb-3">What you get</p>
+            <p className="font-mono text-[9px] text-white/60 tracking-[0.35em] uppercase mb-3">What you get</p>
             {FEATURES.map((f, i) => (
               <motion.div
                 key={i}
@@ -144,7 +144,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
                 className="flex items-center space-x-2.5"
               >
                 <span style={{ color: f.color }}>{f.icon}</span>
-                <span className="font-mono text-xs text-white/45">{f.label}</span>
+                <span className="font-mono text-xs text-white/60">{f.label}</span>
               </motion.div>
             ))}
           </div>
@@ -231,7 +231,7 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
               {isProcessingPayment ? (
                 <span className="relative z-10 flex items-center justify-center space-x-2">
                   <Loader2 className="w-5 h-5 animate-spin text-[#ff2060]" />
-                  <span className="font-mono text-sm text-white/50 tracking-widest">PROCESSING…</span>
+                  <span className="font-mono text-sm text-white/60 tracking-widest">PROCESSING…</span>
                 </span>
               ) : (
                 <span className="relative z-10 flex flex-col items-center">
@@ -239,13 +239,13 @@ export default function PreviewStep({ jobId, previewUrl: _previewUrl, onPay, isP
                     style={{ color: "#ff2060", textShadow: "0 0 12px rgba(255,32,96,0.45)" }}>
                     GET MY CARD · <span style={{ textDecoration: "line-through", color: "rgba(255,255,255,0.45)", fontSize: "0.82em" }}>{oldPrice}</span> {localPrice} →
                   </span>
-                  <span className="font-mono text-[10px] text-white/28 tracking-widest mt-1">One-time · Shareable link · Yours to keep</span>
+                  <span className="font-mono text-[10px] text-white/60 tracking-widest mt-1">One-time · Shareable link · Yours to keep</span>
                 </span>
               )}
             </motion.button>
           )}
 
-          <p className="font-mono text-[8px] text-center text-white/14 mt-3 tracking-wide">
+          <p className="font-mono text-[8px] text-center text-white/60 mt-3 tracking-wide">
             {adminKey ? "Admin session · Payment bypassed" : "Secure checkout · Powered by Gumroad · Sunfall City County Sheriff"}
           </p>
 

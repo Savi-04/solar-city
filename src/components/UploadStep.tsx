@@ -31,7 +31,7 @@ function LedCheckbox({
         className="led-check"
         style={{ "--led-color": color } as React.CSSProperties}
       />
-      <span className="text-[11px] font-mono text-white/35 group-hover:text-white/55 transition-colors leading-relaxed">
+      <span className="text-[11px] font-mono text-white/60 group-hover:text-white/90 transition-colors leading-relaxed">
         {label}
       </span>
     </label>
@@ -128,7 +128,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               <div className="w-2.5 h-2.5 rounded-full bg-[#28ca41]" style={{ boxShadow: "0 0 6px rgba(40,202,65,0.8)" }} />
             </div>
             <div className="flex-1 mx-4 h-px bg-white/5" />
-            <span className="font-mono text-[9px] text-white/18 tracking-widest">NEON_OS v2.0</span>
+            <span className="font-mono text-[9px] text-white/60 tracking-widest">NEON_OS v2.0</span>
           </div>
 
           {/* Hero: scarcity counter */}
@@ -148,7 +148,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               </h1>
               <Zap className="w-5 h-5 text-[#00c6d4]" style={{ filter: "drop-shadow(0 0 6px rgba(0,198,212,0.8))" }} />
             </div>
-            <p className="font-mono text-[9px] tracking-[0.32em] text-white/28 uppercase mb-3">
+            <p className="font-mono text-[9px] tracking-[0.32em] text-white/60 uppercase mb-3">
               County Sheriff · Fugitive Bulletin
             </p>
 
@@ -170,7 +170,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                   {" "}REMAINING
                 </span>
               ) : (
-                <span className="font-mono text-[10px] text-white/30 tracking-widest">BULLETIN ACTIVE</span>
+                <span className="font-mono text-[10px] text-white/60 tracking-widest">BULLETIN ACTIVE</span>
               )}
             </div>
           </motion.div>
@@ -181,7 +181,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
             <div>
               <div className="flex items-center space-x-1.5 mb-1.5">
                 <div className="w-1 h-1 rounded-full bg-[#00e8ff]" style={{ boxShadow: "0 0 4px #00e8ff" }} />
-                <label className="text-[9px] font-mono text-[#00e8ff]/55 tracking-[0.28em] uppercase">Mugshot</label>
+                <label className="text-[9px] font-mono text-[#00e8ff]/90 tracking-[0.28em] uppercase">Mugshot</label>
               </div>
 
               <div
@@ -213,11 +213,11 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
                   ) : (
                     <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center py-8 space-y-3">
                       <div className="w-14 h-14 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300" style={{ background: "linear-gradient(135deg, #0f1220 0%, #080a12 100%)", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.85), 0 0 14px rgba(255,32,96,0.07)" }}>
-                        <Upload className="w-5 h-5 text-[#ff2060]/50" />
+                        <Upload className="w-5 h-5 text-[#ff2060]" />
                       </div>
                       <div className="text-center">
-                        <p className="font-mono text-xs font-bold text-white/50 tracking-widest">UPLOAD YOUR PHOTO</p>
-                        <p className="font-mono text-[9px] text-white/22 mt-0.5">clear face · good lighting</p>
+                        <p className="font-mono text-xs font-bold text-white/60 tracking-widest">UPLOAD YOUR PHOTO</p>
+                        <p className="font-mono text-[9px] text-white/60 mt-0.5">clear face · good lighting</p>
                       </div>
                     </motion.div>
                   )}
@@ -234,14 +234,14 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               <div>
                 <div className="flex items-center space-x-1.5 mb-1.5">
                   <div className="w-1 h-1 rounded-full bg-[#00e8ff]" style={{ boxShadow: "0 0 4px #00e8ff" }} />
-                  <label className="text-[9px] font-mono text-[#00c6d4]/55 tracking-[0.28em] uppercase">Alias</label>
+                  <label className="text-[9px] font-mono text-[#00c6d4]/90 tracking-[0.28em] uppercase">Alias</label>
                 </div>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onBlur={() => setTouched(t => ({ ...t, name: true }))}
-                  className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/12"
+                  className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/45"
                   placeholder="ALEX NOVA"
                   maxLength={15}
                 />
@@ -250,14 +250,14 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               <div>
                 <div className="flex items-center space-x-1.5 mb-1.5">
                   <div className="w-1 h-1 rounded-full bg-[#ff2060]" style={{ boxShadow: "0 0 4px #ff2060" }} />
-                  <label className="text-[9px] font-mono text-[#ff2060]/55 tracking-[0.28em] uppercase">Last Seen In</label>
+                  <label className="text-[9px] font-mono text-[#ff2060] tracking-[0.28em] uppercase">Last Seen In</label>
                 </div>
                 <input
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   onBlur={() => setTouched(t => ({ ...t, city: true }))}
-                  className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/12"
+                  className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/45"
                   placeholder="SUNFALL CITY"
                   maxLength={20}
                 />
@@ -269,14 +269,14 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
             <div>
               <div className="flex items-center space-x-1.5 mb-1.5">
                 <div className="w-1 h-1 rounded-full bg-[#b8ff3c]" style={{ boxShadow: "0 0 4px #b8ff3c" }} />
-                <label className="text-[9px] font-mono text-[#b8ff3c]/55 tracking-[0.28em] uppercase">Charges</label>
+                <label className="text-[9px] font-mono text-[#b8ff3c]/90 tracking-[0.28em] uppercase">Charges</label>
               </div>
               <input
                 type="text"
                 value={skill}
                 onChange={(e) => setSkill(e.target.value)}
                 onBlur={() => setTouched(t => ({ ...t, skill: true }))}
-                className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/12"
+                className="skeuo-input w-full rounded-lg px-3 py-2.5 font-mono text-sm uppercase tracking-wider placeholder:text-white/45"
                 placeholder="GRAND LARCENY · STREET RACING"
                 maxLength={20}
               />
@@ -285,14 +285,14 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
 
             {/* Consent panel */}
             <div className="rounded-xl p-4 space-y-3" style={{ background: "#060810", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.75), 0 1px 0 rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-              <p className="font-mono text-[9px] text-white/18 tracking-[0.35em] uppercase mb-2.5">Authorization Required</p>
+              <p className="font-mono text-[9px] text-white/60 tracking-[0.35em] uppercase mb-2.5">Authorization Required</p>
               <LedCheckbox checked={ageConfirmed} onChange={setAgeConfirmed} color="#00e8ff" label="I confirm I am 18 years or older." />
               <LedCheckbox checked={ownershipConfirmed} onChange={setOwnershipConfirmed} color="#9b59ff" label="This is my photo or I have permission to use it." />
               <LedCheckbox
                 checked={privacyAccepted}
                 onChange={setPrivacyAccepted}
                 color="#ff2060"
-                label={<>I agree to the{" "}<a href="/terms" target="_blank" rel="noreferrer" className="text-[#ff2060]/65 hover:text-[#ff2060] underline transition-colors">Terms</a>{" "}&amp;{" "}<a href="/privacy" target="_blank" rel="noreferrer" className="text-[#ff2060]/65 hover:text-[#ff2060] underline transition-colors">Privacy Policy</a>. Facial data is not stored long-term.</>}
+                label={<>I agree to the{" "}<a href="/terms" target="_blank" rel="noreferrer" className="text-[#ff2060] hover:text-[#ff2060] underline transition-colors">Terms</a>{" "}&amp;{" "}<a href="/privacy" target="_blank" rel="noreferrer" className="text-[#ff2060] hover:text-[#ff2060] underline transition-colors">Privacy Policy</a>. Facial data is not stored long-term.</>}
               />
             </div>
 
@@ -336,7 +336,7 @@ export default function UploadStep({ onUpload, isUploading, uploadError }: Uploa
               </span>
             </button>
 
-            <p className="font-mono text-[8px] text-center text-white/12 tracking-wide">
+            <p className="font-mono text-[8px] text-center text-white/60 tracking-wide">
               Sunfall City County Sheriff · Novelty Bulletin · Not a government document
             </p>
 

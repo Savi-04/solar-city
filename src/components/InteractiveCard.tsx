@@ -360,7 +360,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center font-mono text-sm"
-        style={{ background: "#05050d", color: "rgba(255,80,80,0.8)" }}>
+        style={{ background: "#0d1024", color: "rgba(255,80,80,0.8)" }}>
         {error}
       </div>
     );
@@ -381,14 +381,14 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center space-y-5 px-6"
-        style={{ background: "#05050d" }}>
+        style={{ background: "#0d1024" }}>
         <div className="w-10 h-10 rounded-full border-2 animate-spin"
           style={{ borderColor: "rgba(255,107,26,0.5)", borderTopColor: "transparent" }} />
         <p className="font-mono text-[11px] tracking-[0.35em] uppercase"
           style={{ color: "rgba(255,107,26,0.55)", animation: "blink 1.4s step-end infinite" }}>
           Confirming Payment…
         </p>
-        <p className="font-mono text-[9px] text-white/20 tracking-widest text-center">
+        <p className="font-mono text-[9px] text-white/60 tracking-widest text-center">
           This page will update automatically after payment
         </p>
         {gumroadHref && (
@@ -413,7 +413,7 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   if (!layers) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center space-y-3"
-        style={{ background: "#05050d" }}>
+        style={{ background: "#0d1024" }}>
         <div className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
           style={{ borderColor: "rgba(0,232,255,0.5)", borderTopColor: "transparent" }} />
         <p className="font-mono text-[11px] tracking-[0.35em] uppercase"
@@ -427,13 +427,13 @@ export default function InteractiveCard({ jobId, standalone = true, autoAnimate 
   return (
     <div className={`${standalone ? "min-h-screen py-10 px-4" : "w-full h-full bg-transparent overflow-hidden rounded-xl"} flex flex-col items-center justify-center overflow-hidden font-sans select-none relative`}
       style={standalone ? {
-        background: "#05050d",
+        background: "#0d1024",
         backgroundImage: "radial-gradient(ellipse 60% 50% at 30% 30%, rgba(0,61,79,0.18) 0%, transparent 65%), radial-gradient(ellipse 50% 60% at 70% 70%, rgba(255,107,26,0.08) 0%, transparent 65%)",
       } : undefined}>
 
       {standalone && (
         <div className="absolute top-4 left-4 z-20">
-          <Link to="/" className="font-mono text-[9px] tracking-widest text-white/20 hover:text-white/50 transition-colors uppercase">
+          <Link to="/" className="font-mono text-[9px] tracking-widest text-white/60 hover:text-white/90 transition-colors uppercase">
             ← Sunfall City
           </Link>
         </div>
