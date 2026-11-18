@@ -1247,6 +1247,24 @@ Hyper-realistic, cinematic quality, smooth motion.`;
     res.end(readFileSync(fallback));
   });
 
+  // The landing page is its own document, not a React route: the design kit's
+  // system.css carries bare-element rules that would restyle /create, /analytics,
+  // /terms and /privacy. Registered before the Vite and static middleware so it
+  // wins "/" in both dev and production. Vite copies public/ into dist/ on build.
+  app.get("/", (req: any, res: any) => {
+    // The admin bypass link is /?admin_mode=<secret>. The React app captures that
+    // key, and "/" no longer loads React, so hand the query to /create unchanged.
+    if (typeof req.query.admin_mode === "string") {
+      res.setHeader("Cache-Control", "no-store");
+      return res.redirect(302, "/create" + req.url.slice(req.url.indexOf("?")));
+    }
+    const file = process.env.NODE_ENV === "production"
+      ? path.join(process.cwd(), "dist", "landing.html")
+      : path.join(process.cwd(), "public", "landing.html");
+    res.setHeader("Cache-Control", "no-cache");
+    res.type("html").send(readFileSync(file, "utf8"));
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

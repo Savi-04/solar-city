@@ -122,3 +122,22 @@ introduce "GTA", "Grand Theft Auto", "Vice City", "Leonida", Rockstar or
 Take-Two names, logos, fonts or character likenesses anywhere in the product,
 copy, metadata or ads. The sun-bleached neon crime-city *aesthetic* is a genre
 and is fine. The names are not.
+
+---
+
+## Study documentation
+
+Longer write-ups live in `docs/`, written against the real code:
+
+| File | What it covers |
+|---|---|
+| `docs/ARCHITECTURE.md` | The request flow end to end, plus the known gaps stated plainly |
+| `docs/LANDING-PAGE.md` | Why `/` is a separate document, the design deal, and the measurement behind every media query |
+| `docs/DECISIONS.md` | Each decision with its reasoning and its cost |
+| `docs/RUNBOOK.md` | Running it, env vars, regenerating demo assets, re-running the checkers |
+| `docs/GLOSSARY.md` | Project terms and the stack pieces worth defining |
+| `docs/HANDOFF.md` | Moving the project to a new folder: what to copy, credentials, routes, data, rules, deploy, open items |
+| `docs/NEW-CHAT-PROMPT.md` | The block to paste when opening a fresh Claude session on this project |
+
+The `ARCHITECTURE.md` at the repository root is stale v1 text (Veo, Multer,
+Stripe, "Neon ID Card"). Use `docs/ARCHITECTURE.md`.

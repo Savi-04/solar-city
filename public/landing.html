@@ -1,0 +1,319 @@
+<!doctype html>
+<!-- Sunfall City landing page. Built with tasteskill 2.5.1.
+     kind software · palette candy-on-black · type funnel · hero centred
+     moments word-highlight + iris-opens · nav-centre · footer-dark · close-word
+     rhythm dark-band · buttons tonal · mark ring · radius soft
+     Served as its own document at / so the kit's CSS cannot reach the React routes. -->
+<html lang="en" data-type="software" data-radius="soft" data-buttons="tonal" data-motion>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="page-type" content="software">
+<meta name="site-kind" content="software">
+<title>Sunfall City — Most Wanted</title>
+<meta name="description" content="Upload a selfie and the Sunfall City Sheriff's Office issues you a MOST WANTED bulletin: an alias, charges, a jurisdiction and a bounty. About a minute.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" type="image/png" href="/favicon.png">
+<meta property="og:title" content="Sunfall City — Most Wanted">
+<meta property="og:description" content="Upload a selfie. Get your alias, your charges and your bounty on a Sunfall City fugitive bulletin.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/demo/card-a.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sunfall City — Most Wanted">
+<meta name="twitter:description" content="Upload a selfie. Get your alias, your charges and your bounty on a Sunfall City fugitive bulletin.">
+<meta name="twitter:image" content="/demo/card-a.webp">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400..700&family=Funnel+Sans:wght@400..600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/system.css">
+<link rel="stylesheet" href="/assets/ui/cards.css">
+<link rel="stylesheet" href="/assets/motion/motion.css">
+<link rel="stylesheet" href="/assets/layout/layout.css">
+<link rel="stylesheet" href="/assets/moments/word-highlight/moment.css">
+<style>
+:root {
+  --p-bg: #000000; --p-surface: #0d0d0d; --p-ink: #ffffff; --p-muted: #999999;
+  --p-accent: #93f1f7; --p-accent-ink: #000000; --p-action: #93f1f7; --p-action-ink: #000000;
+  --p-inv-bg: #9ae187; --p-inv-surface: #8bcc7a; --p-inv-ink: #000000; --p-inv-muted: #24391e;
+  --p-inv-accent: #000000; --p-inv-accent-ink: #9ae187; --p-inv-action: #000000; --p-inv-action-ink: #9ae187;
+  --font-display: "Funnel Display", system-ui, sans-serif;
+  --font-text: "Funnel Sans", system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --display-weight: 400;
+  --display-tracking: -0.03em;
+  --display-tracking-xl: -0.04em;
+}
+/* The three bulletins fill the hero window: the board is the product.
+   The kit's window falls back to a sand ground (#d9ccb7), which is a beige
+   slab on this near-black palette, so the window takes the page's own
+   surface and the board covers it instead of floating in it. */
+.hero--centred .hero__window { --ground-bg: #0d0d0d; }
+.board { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center top; }
+/* a phone's window is taller than it is wide against this 2.67 strip, so the
+   board fills it and the middle bulletin reads whole; contain would leave it
+   a stamp in an empty frame */
+@media (max-width: 639px) { .board { object-fit: cover; } }
+.close__word { line-height: 1; }
+/* Every section after the hero is one screen unless it says otherwise. */
+#how, #bounty, #issued { --h: 1; }
+
+/* A tablet (640-1023px): the kit's 12-column grid collapses to one column here,
+   so the cards stack and the sections grow past their screen. Measured at
+   768x1024: #how ran 1.52 screens and #issued 1.08. Giving #how two screens
+   instead left 42% of it empty at 820, so both sections keep their cards in a
+   row here and each still reads in one screen. */
+@media (min-width: 640px) and (max-width: 1199px) {
+  #how .grid.steps > article { grid-column: span 4; }
+  /* the step pictures are portrait, so their panels must follow the height of
+     the screen, not its width: at the kit's own --p-h the three steps left
+     406px empty under them at 820x1180, and at 1024x768 they pushed the
+     section to 1.51 screens */
+  #how .panel { --p-h: clamp(220px, 32vh, 420px); }
+}
+/* #issued keeps its three cards two-up only while the grid would otherwise
+   collapse them into one stacked column; at 1024 the kit's own columns fit. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  #issued .grid.get > article { grid-column: span 6; }
+}
+/* A phone (the checker's 390x844): every section after the hero is exactly one
+   or two screens. Measured there, #how ran 1.92 screens, #issued 1.28 and the
+   footer 1.13, so each section is given the screen count its content actually
+   wants, and the bulletin picture grows into the room rather than content
+   being hidden to make things fit. */
+@media (max-width: 639px) {
+  #how { --hm: 2; }
+  /* the bulletin is the product, so a phone shows it at a size that reads:
+     beside its words at 110px it covered 5% of the screen and the section
+     counted as having no picture at all. At this size #issued wants two
+     screens, which is what it gets. */
+  #issued { --hm: 2; }
+  #issued .grid.get > article:nth-of-type(1) > .panel { --p-h: 456px; max-height: 456px; }
+  #issued .grid.get > article:nth-of-type(1) > .panel img { height: 456px; object-fit: contain; }
+  /* the four footer columns two-up: stacked they pushed the footer over a screen */
+  #contact .footer__col { grid-column: span 6; }
+  /* the footer ran 109px over its screen: tighter rows, and the two legal
+     lines side by side rather than stacked */
+  #contact .closing__links { gap: var(--s-5); }
+  #contact .footer__lede { font-size: var(--t-small); }
+  /* two of the four columns hold only links the nav and the button above
+     already carry, so a phone shows the card's links and the legal ones */
+  #contact .footer__col:nth-of-type(2), #contact .footer__col:nth-of-type(3) { display: none; }
+  /* the pill ran wider than half its container without sitting on its lines */
+  .hero__c > .pill .muted { display: none; }
+}
+/* the kit gives .panel a top margin only, so the step number sat across the
+   picture's bottom edge and the card heading touched the picture above it */
+.steps .card--open > .panel, .get .card--open > .panel { margin-bottom: var(--s-3); }
+.steps .n { font: var(--display-weight) var(--t-stat)/1 var(--font-display);
+  letter-spacing: var(--display-tracking); color: var(--accent); display: block; }
+.price-now { font: var(--display-weight) var(--t-stat)/1 var(--font-display);
+  letter-spacing: var(--display-tracking); display: block; }
+.price-was { font-family: var(--font-mono); text-decoration: line-through;
+  color: color-mix(in oklab, var(--ink) 78%, var(--bg)); }
+.get img, .steps img { display: block; width: 100%; height: auto; border-radius: 10px; }
+.panel { --ground-bg: #0d0d0d; }
+.get .panel { max-height: 360px; overflow: hidden; border-radius: 10px; }
+.get .panel img { object-fit: cover; object-position: top; height: 360px; }
+.steps .panel { border-radius: 10px; overflow: hidden; }
+/* the third step is the bulletin itself: the panel's box is narrower than the
+   card, so cover cut "SUNFALL CITY" to "NFALL CITY". It fits whole instead. */
+.steps article:nth-of-type(3) .panel { background: #0d0d0d; --ground-bg: #0d0d0d; }
+.steps article:nth-of-type(3) img { object-fit: contain; }
+</style>
+<script type="module">
+  // the hero's one entrance on load
+  document.documentElement.classList.add('m-enter');
+</script>
+</head>
+<body>
+
+<header class="nav nav--centre">
+  <div class="wrap nav__bar">
+    <a class="skip-link" href="#top">Skip to content</a>
+    <a class="nav__logo" href="#top"><span class="mark" data-mark="ring" aria-hidden="true"></span>Sunfall City</a>
+    <nav class="nav__links" aria-label="Main">
+      <div class="nav__item"><a class="nav__link" href="#how">How it works</a></div>
+      <div class="nav__item"><a class="nav__link" href="#bounty">The bounty</a></div>
+      <div class="nav__item"><a class="nav__link" href="#issued">What you get</a></div>
+    </nav>
+    <div class="nav__actions">
+      <a class="btn btn--primary" href="/create" data-cta="nav">Get a bulletin</a>
+    </div>
+    <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero hero--centred" data-enter aria-labelledby="hero-h">
+    <div class="wrap"><div class="hero-text">
+      <div class="hero__c">
+        <a class="pill" href="#issued"><span id="registry">2,000 bulletins</span><span class="muted">One per person</span></a>
+        <h1 id="hero-h"><span class="ly-mark" aria-hidden="true"></span> Get on the wanted board</h1>
+        <p class="hero__lead">One selfie, and the Sunfall City Sheriff's Office issues you a fugitive bulletin: an alias, your charges and a bounty you did not pick. <span id="lead-price">$11.99</span> once, no account.</p>
+        <div class="btn-row">
+          <a class="btn btn--primary" href="/create" data-cta="hero">Get on the bulletin<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
+          <a class="btn btn--secondary" href="#issued">See what is issued</a>
+        </div>
+      </div>
+      <div class="hero__window">
+        <img class="board" src="/demo/board.webp" width="1600" height="600" alt="Three issued bulletins side by side: Vesper, wanted in Sunfall City for grand larceny, reward 1,730,000 dollars; Augustine, wanted in Coral Keys for racketeering, reward 2,470,000 dollars; Kite, wanted in Gold Coast for street racing, reward 3,210,000 dollars">
+      </div>
+    </div></div>
+  </section>
+
+  <section class="section" id="how" aria-labelledby="how-h">
+    <div class="wrap">
+      <div class="section-head"><h2 id="how-h">Three steps to the wanted board</h2><p class="t-lead">A browser and one photograph is the whole setup.</p></div>
+      <div class="grid steps">
+        <article class="card card--open span-4">
+          <div class="panel"><img class="frame__img" src="/demo/step-photo.webp" width="960" height="1280" alt="The stand-in selfie as sent: a plain portrait in daylight" loading="lazy"></div>
+          <span class="n" aria-hidden="true">1</span>
+          <h3 class="t-card">Your selfie</h3>
+          <p class="t-small muted">One clear photograph of your face, looking at the camera. Good light helps; a hat and sunglasses do not.</p>
+        </article>
+        <article class="card card--open span-4">
+          <div class="panel"><img class="frame__img" src="/demo/step-relit.webp" width="960" height="1280" alt="The same portrait relit for the Sunfall coast at golden hour" loading="lazy"></div>
+          <span class="n" aria-hidden="true">2</span>
+          <h3 class="t-card">The Sunfall relight</h3>
+          <p class="t-small muted">Your portrait is relit for the Sunfall coast at golden hour. Your face is not redrawn, only the light changes.</p>
+        </article>
+        <article class="card card--open span-4">
+          <div class="panel"><img class="frame__img" src="/demo/step-issued.webp" width="960" height="1280" alt="The issued bulletin: Vesper, wanted in Sunfall City for grand larceny, reward 1,730,000 dollars" loading="lazy"></div>
+          <span class="n" aria-hidden="true">3</span>
+          <h3 class="t-card">The bulletin</h3>
+          <p class="t-small muted">A numbered bulletin, a permanent link to it, and two short videos to post.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section statement" id="bounty" data-moment="word-highlight" aria-label="The bounty">
+    <div class="wrap">
+      <p class="t-label">The bounty</p>
+      <p class="mo-wh__text">Every bulletin carries a reward. The office sets it the moment you are booked, prints it under your charges, and <strong>it never changes</strong>. Nobody gets to pick their own number.</p>
+    </div>
+  </section>
+
+  <section class="section ground-surface" id="issued" aria-labelledby="issued-h">
+    <div class="wrap">
+      <div class="section-head"><h2 id="issued-h">What the office issues</h2><p class="t-lead">One payment, three files, yours to keep.</p></div>
+      <div class="grid get">
+        <article class="card card--open span-5">
+          <div class="panel"><img class="frame__img" src="/demo/card-b.webp" width="800" height="1066" alt="The issued bulletin for Augustine at full size" loading="lazy"></div>
+          <h3 class="t-card">The bulletin file</h3>
+          <p class="t-small muted">Your numbered card at full resolution with no watermark, plus a link that stays live so you can send it to anyone.</p>
+        </article>
+        <article class="card card--open span-4">
+          <h3 class="t-card">The bulletin videos</h3>
+          <p class="t-small muted">A ten second clip of you on the Sunfall strip at dusk, and an eight second clip of the bulletin turning in the light. Both vertical, both ready to post.</p>
+          <p class="t-small muted">They are made after payment and download themselves when they are done.</p>
+        </article>
+        <article class="card card--open span-3">
+          <h3 class="t-card">The price</h3>
+          <p><span class="price-now" id="price-now">$11.99</span><span class="price-was" id="price-was">$19.99</span></p>
+          <p class="t-small muted">One payment. No account, no subscription, nothing stored to charge again.</p>
+          <div class="btn-row"><a class="btn btn--primary" href="/create" data-cta="price">Get on the bulletin<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer closing footer--dark ground-inverse" id="contact" aria-labelledby="close-h">
+  <div class="wrap">
+    <div class="closing__cta close--word">
+      <div class="section-head--split">
+        <div><h2 id="close-h">Get on the bulletin</h2><p class="t-lead">About a minute from photograph to card.</p></div>
+        <a class="btn btn--primary" href="/create" data-cta="close">Get on the bulletin<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
+      </div>
+      <p class="close__word" aria-hidden="true">SUNFALL</p>
+    </div>
+    <div class="closing__links">
+      <div class="grid">
+        <div class="span-4 stack-4">
+          <a class="nav__logo" href="#top"><span class="mark" data-mark="ring" aria-hidden="true"></span>Sunfall City</a>
+          <p class="footer__lede">A fictional sheriff's office that turns one selfie into a numbered wanted bulletin.</p>
+        </div>
+        <div class="span-2 footer__col"><h3>The card</h3><ul><li><a href="#how">How it works</a></li><li><a href="#issued">What you get</a></li></ul></div>
+        <div class="span-2 footer__col"><h3>The bounty</h3><ul><li><a href="#bounty">How it is set</a></li><li><a href="#issued">The price</a></li></ul></div>
+        <div class="span-2 footer__col"><h3>Start</h3><ul><li><a href="/create">Get on the bulletin</a></li><li><a href="#top">Back to the top</a></li></ul></div>
+        <div class="span-2 footer__col"><h3>Legal</h3><ul><li><a href="/terms">Terms</a></li><li><a href="/privacy">Privacy</a></li></ul></div>
+      </div>
+      <div class="footer__legal">
+        <span>&copy; 2026 Sunfall City &nbsp; The city, the sheriff's office, the charges and the bounties are fictional. Nothing here is a government document.</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script type="module" src="/assets/system.js"></script>
+<script type="module" src="/assets/motion/motion.js"></script>
+<script type="module" src="/assets/moments/moments.js"></script>
+<script type="module">
+  // Count this visit, matching the React routes' usePageView.
+  fetch('/api/analytics/pageview', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page: '/', referrer: document.referrer || 'direct' }),
+  }).catch(() => {});
+
+  // Count the hero and price buttons, matching the keys the dashboard reads.
+  for (const a of document.querySelectorAll('[data-cta]')) {
+    a.addEventListener('click', () => {
+      fetch('/api/analytics/pageview', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: 'cta:make-your-card', referrer: document.referrer || 'direct' }),
+      }).catch(() => {});
+    });
+  }
+
+  // How many bulletins are gone.
+  fetch('/api/registry/count').then(r => r.json()).then(d => {
+    const el = document.getElementById('registry');
+    if (!el || typeof d.issued !== 'number') return;
+    el.textContent = d.remaining <= 0
+      ? 'Board full'
+      : `${d.issued.toLocaleString()} of 2,000 issued`;
+  }).catch(() => {});
+
+  // Show the price in the reader's own currency. Same rules as src/hooks/useCurrencyPrice.ts:
+  // Gumroad charges in USD, so USD is the base and converted figures are marked approximate.
+  const USD = 11.99, OLD_USD = 19.99;
+  function detectCurrency() {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz === 'Asia/Kolkata' || tz === 'Asia/Calcutta') return 'INR';
+      if (tz === 'Europe/London') return 'GBP';
+      if (tz.startsWith('Australia/')) return 'AUD';
+      if (['America/Toronto','America/Vancouver','America/Edmonton','America/Winnipeg'].includes(tz)) return 'CAD';
+      if (tz === 'Asia/Tokyo') return 'JPY';
+      if (tz === 'Asia/Seoul') return 'KRW';
+      if (['Asia/Shanghai','Asia/Chongqing','Asia/Beijing'].includes(tz)) return 'CNY';
+      if (tz === 'America/Sao_Paulo' || tz === 'America/Recife') return 'BRL';
+      if (tz === 'Asia/Singapore') return 'SGD';
+      if (tz === 'Asia/Dubai' || tz === 'Asia/Muscat') return 'AED';
+      if (tz.startsWith('Europe/')) return 'EUR';
+    } catch { /* */ }
+    return 'USD';
+  }
+  const currency = detectCurrency();
+  if (currency !== 'USD') {
+    fetch('https://open.er-api.com/v6/latest/USD').then(r => r.json()).then(data => {
+      const rate = data?.rates?.[currency];
+      if (!rate) return;
+      const fmt = (amt) => '\u2248' + new Intl.NumberFormat(navigator.language, {
+        style: 'currency', currency, maximumFractionDigits: 0,
+      }).format(Math.round(amt * rate));
+      for (const id of ['price-now', 'lead-price']) {
+        const el = document.getElementById(id); if (el) el.textContent = fmt(USD);
+      }
+      const was = document.getElementById('price-was'); if (was) was.textContent = fmt(OLD_USD);
+    }).catch(() => {});
+  }
+</script>
+</body>
+</html>
